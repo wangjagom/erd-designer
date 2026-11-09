@@ -431,6 +431,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     <option value="blank">빈 판</option>
   </select>
   <button class="btn" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
+  <button class="btn" id="cloud-btn" type="button" title="Supabase에 저장·불러오기·공유"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">클라우드</span></button>
   <button class="btn" id="show-json" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>저장·불러오기</button>
 </header>
 
@@ -1299,6 +1300,7 @@ stage.addEventListener('dblclick', function (e) {
   $('#redo').addEventListener('click', redoIt);
   $('#example').addEventListener('change', function () {
     var v = this.value; this.value = '';
+    if (v && window.ERD && window.ERD.onReset) window.ERD.onReset();
     if (v === 'school') freshStart(exSchool()); else if (v === 'shop') freshStart(exShop()); else if (v === 'blank') freshStart({ tables: [], rels: [], seq: 1 });
   });
   $('#zoom-in').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.2); });
@@ -1370,7 +1372,7 @@ stage.addEventListener('dblclick', function (e) {
     try {
       var d = JSON.parse($('#m-text').value);
       if (!d || !Array.isArray(d.tables) || !Array.isArray(d.rels)) throw new Error('bad');
-      d.seq = d.seq || 1000; closeModal(); freshStart(d);
+      d.seq = d.seq || 1000; closeModal(); if (window.ERD && window.ERD.onReset) window.ERD.onReset(); freshStart(d);
     } catch (x) { $('#m-note').textContent = '형식이 맞지 않아요. 복사해 둔 내용을 그대로 붙여넣어 주세요.'; }
   });
 
@@ -1380,8 +1382,21 @@ stage.addEventListener('dblclick', function (e) {
   try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) { saved = null; }
   if (saved && Array.isArray(saved.tables) && saved.tables.length) { S = saved; syncAll(); hist = [snapshot()]; drawCanvas(); renderSide(); updateUndo(); fit(); }
   else freshStart(exSchool());
+
+  /* ---------------- bridge for cloud.js ---------------- */
+  window.ERD = {
+    get: function () { return JSON.parse(snapshot()); },
+    load: function (d) { if (!d || !Array.isArray(d.tables) || !Array.isArray(d.rels)) throw new Error('bad'); d.seq = d.seq || 1000; freshStart(d); },
+    isEmpty: function () { return !S.tables.length; },
+    firstName: function () { return S.tables.length ? S.tables[0].name : ''; },
+    hint: hint,
+    onReset: null
+  };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { mcache = {}; drawCanvas(); fit(); });
 })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="cloud.js"></script>
 </body>
 </html>

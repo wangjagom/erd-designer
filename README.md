@@ -3,7 +3,8 @@
 브라우저에서 바로 쓰는 ERD(Entity Relationship Diagram) 설계 도구입니다. 표를 만들고 1:1 · 1:N · N:M 관계를 그리며, 상세 설정을 켜면 데이터 타입과 SQL(CREATE TABLE)까지 확인할 수 있어요.
 
 - 웹 주소: https://wangjagom.github.io/erd-designer/
-- 단일 파일 `index.html`로 동작하며, 작업 내용은 브라우저(localStorage)에 저장돼요.
+- 작업 내용은 브라우저(localStorage)에 자동 저장돼요.
+- Supabase를 연결하면 간편 로그인(Google · 카카오 · GitHub)으로 ERD를 클라우드에 저장하고, 읽기 전용 링크로 공유할 수 있어요. 설정 방법: [docs/SUPABASE.md](docs/SUPABASE.md)
 
 ## 배포
 
