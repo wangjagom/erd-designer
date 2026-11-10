@@ -30,7 +30,7 @@
     var sub = '표 ' + c.tables + ' · 관계 ' + c.rels;
     var st = '';
     if (cloud.user && cloud.busy) st = ' · 저장 중…';
-    else if (cloud.user && cloud.saved) st = cloud.dirty ? ' · <span class="dirty">저장 안 됨</span>' : ' · 저장됨';
+    else if (cloud.user && cloud.saved) st = cloud.dirty ? (cloud.autosave ? ' · 저장 대기 중' : ' · <span class="dirty">저장 안 됨</span>') : ' · 저장됨';
     $('#m-sub').innerHTML = esc(sub) + st;
   }
 
@@ -67,8 +67,10 @@
         h += '<div class="m-row">' + (u.avatar ? '<img class="m-av" src="' + esc(u.avatar) + '" alt="" referrerpolicy="no-referrer">' : '<span class="m-av" aria-hidden="true">' + esc(u.name.slice(0, 1).toUpperCase()) + '</span>') +
           '<span class="grow">' + esc(u.name) + '<small>' + esc(cloud.saved ? cloud.title : '아직 클라우드에 저장하지 않았어요') + '</small></span>' +
           '<button type="button" class="btn ' + (clean ? 'clean' : 'primary') + '" data-m="save"' + (cloud.busy ? ' disabled' : '') + '>' + esc(cloud.saveLabel || '저장') + '</button></div>' +
+          '<label class="m-row" for="m-auto"><span class="grow">자동 저장<small>' + (cloud.autosave ? '고치고 3초 뒤 클라우드에 저장해요' : '꺼짐 · 저장 버튼으로 직접 저장해요') + '</small></span>' +
+          '<span class="switch"><input type="checkbox" id="m-auto" data-m="autosave"' + (cloud.autosave ? ' checked' : '') + '><span class="tr"></span></span></label>' +
           '<button type="button" class="m-row" data-m="cloud">' + ic('<path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/>') +
-          '<span class="grow">내 ERD 목록 · 공유 · 계정</span>' + CHEV + '</button>';
+          '<span class="grow">내 ERD 목록 · 버전 기록 · 공유</span>' + CHEV + '</button>';
       }
       h += '<div class="m-sep"></div>';
     }
@@ -114,6 +116,7 @@
   veil.addEventListener('change', function (e) {
     var m = e.target.getAttribute('data-m');
     if (m === 'ident') { relId.checked = e.target.checked; fire(relId); }
+    else if (m === 'autosave') { if (window.ERD && window.ERD.setAutosave) window.ERD.setAutosave(e.target.checked); }
     else if (m === 'detail') { detailOn.checked = e.target.checked; fire(detailOn); render(); }
     else if (m === 'example' && e.target.value) { example.value = e.target.value; setMenu(false); fire(example); }
   });

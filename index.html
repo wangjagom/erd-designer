@@ -118,6 +118,9 @@ select.btn { padding-right: 8px; }
 .hint::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
 .hint.warn::before { background: #fb7185; }
 .hint[hidden] { display: none; }
+.toast { pointer-events: auto; padding-right: 6px; }
+.toast button { height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: rgb(255 255 255 / .14); color: inherit; font-weight: 600; font-size: 13px; flex: none; }
+.toast button:hover { background: rgb(255 255 255 / .24); }
 .zoom { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .zoom button { height: 28px; min-width: 28px; padding: 0 8px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-2); }
 .zoom button:hover { background: var(--bg); }
@@ -531,6 +534,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
       <g id="world"><g id="layer-rels"></g><g id="layer-tables"></g></g>
     </svg>
     <div class="hint" id="hint" role="status" aria-live="polite" hidden></div>
+    <div class="hint toast" id="toast" role="status" aria-live="polite" hidden><span id="toast-t"></span><button type="button" id="toast-b">되돌리기</button></div>
     <div class="zoom" role="group" aria-label="확대 축소">
       <button type="button" id="zoom-out" aria-label="축소">−</button>
       <span id="zoom-val">100%</span>
@@ -860,8 +864,18 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
 
   /* ---------------- hints ---------------- */
   var hintTimer = null;
+  var toastTimer = null;
+  function toast(text, onUndo, ms) {
+    var t = $('#toast'); clearTimeout(toastTimer);
+    if (!text) { t.hidden = true; return; }
+    $('#hint').hidden = true;
+    $('#toast-t').textContent = text; t.hidden = false;
+    $('#toast-b').onclick = function () { t.hidden = true; onUndo(); };
+    toastTimer = setTimeout(function () { t.hidden = true; refreshToolHint(); }, ms || 6000);
+  }
   function hint(text, warn, ms) {
     var h = $('#hint'); clearTimeout(hintTimer);
+    if (text) toast('');
     if (!text) { h.hidden = true; return; }
     h.textContent = text; h.className = 'hint' + (warn ? ' warn' : ''); h.hidden = false;
     if (ms) hintTimer = setTimeout(function () { h.hidden = true; refreshToolHint(); }, ms);
@@ -1024,7 +1038,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     try { document.dispatchEvent(new Event('erd:change')); } catch (e) { /* ignore */ }
   }
   function updateUndo() { $('#undo').disabled = hist.length < 2; $('#redo').disabled = !redo.length; }
-  function commit() { syncAll(); hist.push(snapshot()); if (hist.length > 80) hist.shift(); redo.length = 0; persist(); updateUndo(); }
+  function commit() { toast(''); syncAll(); hist.push(snapshot()); if (hist.length > 80) hist.shift(); redo.length = 0; persist(); updateUndo(); }
   function loadState(json) {
     S = JSON.parse(json);
     if (sel && !(sel.type === 't' ? T(sel.id) : R(sel.id))) sel = null;
@@ -1185,9 +1199,15 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   }
   function deleteSel() {
     if (!sel) return;
-    if (sel.type === 't') { S.tables = S.tables.filter(function (t) { return t.id !== sel.id; }); S.rels = S.rels.filter(function (r) { return r.parent !== sel.id && r.child !== sel.id; }); }
+    var msg = '관계를 지웠어요';
+    if (sel.type === 't') {
+      var gone = T(sel.id), nr = S.rels.filter(function (r) { return r.parent === sel.id || r.child === sel.id; }).length;
+      msg = '“' + (gone && gone.name || '이름 없음') + '” 표를 지웠어요' + (nr ? ' (관계 ' + nr + '개 포함)' : '');
+      S.tables = S.tables.filter(function (t) { return t.id !== sel.id; }); S.rels = S.rels.filter(function (r) { return r.parent !== sel.id && r.child !== sel.id; });
+    }
     else S.rels = S.rels.filter(function (r) { return r.id !== sel.id; });
     sel = null; commit(); drawCanvas(); renderSide();
+    toast(msg, undo);
   }
 
   /* ---------------- canvas pointer handling ---------------- */
@@ -1253,6 +1273,12 @@ stage.addEventListener('dblclick', function (e) {
   });
 
   /* ---------------- inspector events ---------------- */
+  var typingTimer = null;
+  function persistSoon() { clearTimeout(typingTimer); typingTimer = setTimeout(function () { typingTimer = null; persist(); }, 500); }
+  function flushTyping() { if (typingTimer) { clearTimeout(typingTimer); typingTimer = null; persist(); } }
+  side.addEventListener('input', persistSoon);
+  window.addEventListener('pagehide', flushTyping);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') flushTyping(); });
   side.addEventListener('input', function (e) {
     var f = e.target.getAttribute('data-f'); if (!f) return;
     if (f === 'erddb') { S.db = e.target.value; var pt0 = side.querySelector('.ph-t'); if (pt0) pt0.textContent = S.db || '이름 없는 ERD'; try { document.dispatchEvent(new Event('erd:change')); } catch (x) { /* ignore */ } return; }
@@ -1354,6 +1380,7 @@ stage.addEventListener('dblclick', function (e) {
         else { pickFor = pickFor === col.id ? null : col.id; renderSide(); var s = document.getElementById('fk-' + col.id); if (s) s.focus(); }
       } else if (act === 'del') {
         tt.cols = tt.cols.filter(function (c) { return c !== col; }); syncAll(); commit(); drawCanvas(); renderSide();
+        toast('“' + (col.name || '이름 없음') + '” 필드를 지웠어요', function () { undo(); });
       }
       return;
     }
@@ -1389,6 +1416,12 @@ stage.addEventListener('dblclick', function (e) {
   });
   applyDetail();
   var vbtn = $('#view-btn'), vpop = $('#view-pop');
+  function setLineStyle(v, byUser) {
+    if (['curve', 'ortho', 'straight'].indexOf(v) < 0 || v === lineStyle) return;
+    lineStyle = v; syncLines(); drawRels();
+    try { localStorage.setItem('erd-line', lineStyle); } catch (x) { /* ignore */ }
+    if (byUser) try { document.dispatchEvent(new CustomEvent('erd:pref', { detail: { lineStyle: v } })); } catch (x) { /* ignore */ }
+  }
   function syncLines() {
     Array.prototype.forEach.call(vpop.querySelectorAll('[data-line]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-line') === lineStyle)); });
   }
@@ -1404,8 +1437,7 @@ stage.addEventListener('dblclick', function (e) {
   vpop.addEventListener('click', function (e) {
     e.stopPropagation();
     var b = e.target.closest('[data-line]'); if (!b) return;
-    lineStyle = b.getAttribute('data-line'); syncLines(); drawRels();
-    try { localStorage.setItem('erd-line', lineStyle); } catch (x) { /* ignore */ }
+    setLineStyle(b.getAttribute('data-line'), true);
   });
   document.addEventListener('click', function () { if (!vpop.hidden) openPop(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !vpop.hidden) openPop(false); });
@@ -1543,6 +1575,9 @@ stage.addEventListener('dblclick', function (e) {
     dbName: function () { return (S.db || '').trim(); },
     counts: function () { return { tables: S.tables.length, rels: S.rels.length }; },
     hint: hint,
+    flush: function () { flushTyping(); },
+    lineStyle: function () { return lineStyle; },
+    setLineStyle: function (v) { setLineStyle(v, false); },
     onReset: null,
     onChange: null
   };
