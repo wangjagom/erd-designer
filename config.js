@@ -5,9 +5,9 @@
  * service_role 키는 절대 여기에 넣지 마세요.
  */
 window.ERD_CONFIG = {
-  supabaseUrl: '',      // 예: 'https://abcdefghijkl.supabase.co'
-  supabaseAnonKey: '',  // 예: 'eyJhbGciOi...' 또는 'sb_publishable_...'
+  supabaseUrl: 'https://jvgqcuolgoalzscyadqb.supabase.co',
+  supabaseAnonKey: 'sb_publishable_ERqlIMeWxL_4t8nAvdiIxg_UUAnzxFL',
 
   // Supabase → Authentication → Providers 에서 켠 간편 로그인만 남기세요.
-  providers: ['google', 'kakao', 'github']
+  providers: ['google', 'github']
 };
