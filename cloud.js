@@ -95,7 +95,7 @@
     saveBtn.title = (cur ? '“' + cur.title + '”에 저장' : '클라우드에 새로 저장') + ' (Ctrl+S)';
   }
   function say(t, err) { msg = t; msgErr = !!err; render(); }
-  function defaultTitle() { return window.ERD && window.ERD.firstName() ? window.ERD.firstName() + ' ERD' : '제목 없는 ERD'; }
+  function defaultTitle() { return window.ERD && window.ERD.dbName && window.ERD.dbName() ? window.ERD.dbName() : window.ERD && window.ERD.firstName() ? window.ERD.firstName() + ' ERD' : '제목 없는 ERD'; }
 
   function render() {
     if (veil.hidden) return;

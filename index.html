@@ -263,6 +263,13 @@ select.btn { padding-right: 8px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .field > label, .field > .lab { font-size: 12px; font-weight: 500; color: var(--ink-2); }
 .in { height: 36px; border-radius: 9px; background: var(--panel); border-color: var(--line-2); font-size: 13.5px; }
+textarea.in { height: auto; min-height: 84px; padding: 8px 10px; line-height: 1.55; resize: vertical; font: inherit; font-size: 13.5px; }
+.field + .field { margin-top: 12px; }
+.r-desc-bg { fill: var(--panel); stroke: var(--line-2); }
+.r-desc { font: 500 11px var(--font-ui); fill: var(--ink-2); }
+.rel-desc { cursor: pointer; }
+.rel-desc.dim { opacity: .35; }
+.rel-desc.on .r-desc-bg { stroke: var(--accent); }
 .in::placeholder { color: var(--muted); opacity: .75; }
 
 .cols { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--panel); }
@@ -711,7 +718,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     while (gRels.firstChild) gRels.removeChild(gRels.firstChild);
     var pairs = {}, selT = sel && sel.type === 't' ? sel.id : null;
     S.rels.forEach(function (r) { var k = [r.parent, r.child].sort().join('|'); (pairs[k] = pairs[k] || []).push(r); });
-    var chip = null;
+    var chip = null, descs = [];
     S.rels.forEach(function (r) {
       if (!T(r.parent) || !T(r.child)) return;
       var list = pairs[[r.parent, r.child].sort().join('|')], rt = route(r, list.indexOf(r), list.length);
@@ -724,12 +731,24 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
       marks(g, rt.pts[rt.pts.length - 1], rt.u2, r.kind === '11' ? 'one' : 'many', false);
       var h = el('path', { d: d, 'class': 'r-hit', 'data-rel': r.id }, g);
       el('title', {}, h, T(r.parent).name + ' 1 : ' + (r.kind === '11' ? '1' : 'N') + ' ' + T(r.child).name);
-      if (on) {
+      var dtext = (r.desc || '').trim().split('\n')[0];
+      if (on || dtext) {
         var poly = rt.self || lineStyle === 'ortho' ? rt.pts : lineStyle === 'straight' ? stubs(rt) : [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1].map(function (s) { return bez(rt, s); });
         var mp = alongMid(poly);
+        if (dtext) descs.push({ x: mp[0], y: mp[1] + (on ? 24 : 0), t: dtext.length > 22 ? dtext.slice(0, 21) + '…' : dtext, full: r.desc.trim(), id: r.id,
+          cls: 'rel-desc' + (on ? ' on' : '') + (selT && r.parent !== selT && r.child !== selT ? ' dim' : '') });
+      }
+      if (on) {
         chip = { x: mp[0], y: mp[1], t: (r.kind === '11' ? '1 : 1' : '1 : N') + ' · ' + (r.ident ? '식별' : '비식별'), s: (r.ident ? '식별' : '비식별'),
                  a: rt.pts[0], ua: rt.u1, b: rt.pts[rt.pts.length - 1], ub: rt.u2, k: r.kind };
       }
+    });
+    /* relation descriptions: a small label on the middle of the line (click selects the relation) */
+    descs.forEach(function (d) {
+      var dg = el('g', { 'class': d.cls, 'data-rel': d.id }, gRels), w = textW(d.t, 11) + 16;
+      el('rect', { x: d.x - w / 2, y: d.y - 10, width: w, height: 20, rx: 6, 'class': 'r-desc-bg' }, dg);
+      el('text', { x: d.x, y: d.y + 4, 'text-anchor': 'middle', 'class': 'r-desc' }, dg, d.t);
+      el('title', {}, dg, d.full);
     });
     if (chip) {
       var mode = 'ends', cg = el('g', { 'class': 'rel-chip m-' + mode, 'pointer-events': 'none' }, gRels);
@@ -906,10 +925,14 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
         seg('관계 종류', 'l-kind', 'kind', [['1N', r2.kind === '1N', '1 : N'], ['11', r2.kind === '11', '1 : 1']]) +
         seg('선 종류', 'l-id', 'ident', [['1', r2.ident, '식별 · 실선', P2 === C2], ['0', !r2.ident, '비식별 · 점선']]) +
         seg('부모가 꼭 있어야 하나요', 'l-opt', 'optional', [['0', !r2.optional, '필수'], ['1', r2.optional, '선택', r2.ident]]) +
-        '</div><div class="note">식별 관계는 자식 표의 키에 부모 키가 들어가요(연결 표가 대표적이에요). 비식별 관계는 일반 필드(FK)로만 이어요.</div>';
+        '</div><div class="sec"><div class="field"><label for="rel-desc">관계 설명</label><textarea class="in" id="rel-desc" data-f="rdesc" rows="3" placeholder="예: 학생은 한 반에 속하고, 반은 여러 학생을 가져요">' + esc(r2.desc || '') + '</textarea></div></div>' +
+        '<div class="note">식별 관계는 자식 표의 키에 부모 키가 들어가요(연결 표가 대표적이에요). 비식별 관계는 일반 필드(FK)로만 이어요.</div>';
     } else {
-      html += ph('', '시작하기', '표를 만들고 관계를 그려 보세요') +
-        '<div class="sec"><ol class="steps">' +
+      html += ph(IC.spark, esc(S.db || '이름 없는 ERD'), '표 ' + S.tables.length + '개 · 관계 ' + S.rels.length + '개') +
+        '<div class="sec"><div class="sec-h"><h2>ERD 정보</h2></div>' +
+        '<div class="field"><label for="erd-db">DB 이름</label><input class="in" id="erd-db" data-f="erddb" value="' + esc(S.db || '') + '" placeholder="예: 학사관리 DB" autocomplete="off"></div>' +
+        '<div class="field"><label for="erd-desc">설명</label><textarea class="in" id="erd-desc" data-f="erddesc" rows="4" placeholder="이 DB가 무엇을 관리하는지, 주요 업무 흐름, 설계할 때 정한 규칙 등을 적어 두세요">' + esc(S.desc || '') + '</textarea></div></div>' +
+        '<div class="sec"><div class="sec-h"><h2>시작하기</h2></div><ol class="steps">' +
         '<li><b>표 추가</b>를 누르거나 빈 곳을 두 번 눌러 표를 만들어요.</li>' +
         '<li>표를 누르면 여기서 필드와 설명을 고치고, 열쇠(PK)·고리(FK) 버튼으로 키를 정해요.</li>' +
         '<li><b>1:N</b>을 고른 뒤 부모 표의 PK 필드, 자식 표의 필드 순서로 누르면 그 필드끼리 이어져요.</li>' +
@@ -1175,7 +1198,11 @@ stage.addEventListener('dblclick', function (e) {
 
   /* ---------------- inspector events ---------------- */
   side.addEventListener('input', function (e) {
-    var f = e.target.getAttribute('data-f'); if (!f || !sel || sel.type !== 't') return;
+    var f = e.target.getAttribute('data-f'); if (!f) return;
+    if (f === 'erddb') { S.db = e.target.value; var pt0 = side.querySelector('.ph-t'); if (pt0) pt0.textContent = S.db || '이름 없는 ERD'; return; }
+    if (f === 'erddesc') { S.desc = e.target.value; return; }
+    if (f === 'rdesc') { var rr = sel && sel.type === 'r' && R(sel.id); if (rr) { rr.desc = e.target.value; drawRels(); } return; }
+    if (!sel || sel.type !== 't') return;
     var t = T(sel.id), li = e.target.closest('.col'), c = li && C(t, li.getAttribute('data-c'));
     if (f === 'tname') t.name = e.target.value;
     else if (f === 'tko') t.ko = e.target.value;
@@ -1392,7 +1419,17 @@ stage.addEventListener('dblclick', function (e) {
     }
     S.tables.forEach(visit);
     var out = ['-- ERD 설계 도구에서 생성한 SQL (일반 SQL 문법)', '-- SAP에서는 이 구조를 데이터 사전(SE11)에서 정의해요. 참고용으로 보세요.', ''];
+    function cm(s) { return String(s).trim().split('\n').map(function (l) { return '--   ' + l; }); }
+    if (S.db || (S.desc || '').trim()) {
+      if (S.db) out.push('-- DB: ' + S.db);
+      if ((S.desc || '').trim()) out.push.apply(out, ['-- 설명:'].concat(cm(S.desc)));
+      out.push('');
+    }
     order.forEach(function (t) {
+      S.rels.filter(function (r) { return r.child === t.id && (r.desc || '').trim(); }).forEach(function (r) {
+        out.push('-- 관계 ' + T(r.parent).name + ' → ' + t.name + ':');
+        out.push.apply(out, cm(r.desc));
+      });
       var lines = [], pks = t.cols.filter(function (c) { return c.pk; });
       t.cols.forEach(function (c) { lines.push('  ' + c.name + ' ' + c.type + (c.nn || c.pk ? ' NOT NULL' : '')); });
       if (pks.length) lines.push('  PRIMARY KEY (' + pks.map(function (c) { return c.name; }).join(', ') + ')');
@@ -1447,6 +1484,7 @@ stage.addEventListener('dblclick', function (e) {
     load: function (d) { if (!d || !Array.isArray(d.tables) || !Array.isArray(d.rels)) throw new Error('bad'); d.seq = d.seq || 1000; freshStart(d); },
     isEmpty: function () { return !S.tables.length; },
     firstName: function () { return S.tables.length ? S.tables[0].name : ''; },
+    dbName: function () { return (S.db || '').trim(); },
     hint: hint,
     onReset: null,
     onChange: null
