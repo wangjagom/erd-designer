@@ -97,9 +97,20 @@ select.btn { padding-right: 8px; }
 /* workspace */
 .work { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 344px; }
 .stage-wrap { position: relative; min-width: 0; min-height: 0; }
-.work.noside { grid-template-columns: minmax(0, 1fr); }
-.work.noside .side { display: none; }
-#side-toggle[aria-pressed="false"] { color: var(--muted); }
+/* Figma-style collapse: panel button in the inspector header, floating pill on the canvas when closed */
+.side-pill { position: absolute; top: 12px; right: 12px; z-index: 5; display: none; align-items: center; gap: 8px; max-width: min(280px, calc(100% - 24px)); height: 40px; padding: 0 6px 0 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); box-shadow: var(--shadow); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.side-pill:hover { border-color: var(--line-2); }
+.side-pill .sp-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-pill .sp-ic { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: var(--muted); flex: none; }
+.side-pill:hover .sp-ic { background: var(--bg); color: var(--ink); }
+.side-pill svg.i { width: 17px; height: 17px; }
+.ib.side-close { flex: none; }
+@media (min-width: 861px) {
+  .work.noside { grid-template-columns: minmax(0, 1fr); }
+  .work.noside .side { display: none; }
+  .work.noside .side-pill { display: flex; }
+}
+@media (max-width: 860px) { .ib.side-close { display: none; } }
 #stage { text-rendering: geometricPrecision; width: 100%; height: 100%; display: block; touch-action: none; cursor: default; background: var(--bg); }
 #stage.panning { cursor: grabbing; }
 #stage.relmode { cursor: crosshair; }
@@ -437,9 +448,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   </select>
   <button class="btn" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
   <button class="btn" id="cloud-btn" type="button" title="Supabase에 저장·불러오기·공유"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">클라우드</span></button>
-  <button class="btn" id="show-json" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>저장·불러오기</button>
-  <button class="btn ghost sq" id="side-toggle" type="button" aria-pressed="true" aria-controls="side" aria-label="속성 패널 닫기" title="속성 패널 닫기"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button>
-</header>
+  <button class="btn" id="show-json" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>저장·불러오기</button></header>
 
 <div class="pop" id="view-pop" hidden role="dialog" aria-label="보기 설정">
   <p class="pop-t">선 모양</p>
@@ -463,6 +472,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
       <button type="button" id="zoom-in" aria-label="확대">+</button>
       <button type="button" id="zoom-fit">맞춤</button>
     </div>
+    <button type="button" class="side-pill" id="side-open" aria-controls="side" title="속성 패널 열기 (Ctrl+\)"><span class="sp-t" id="side-pill-t">속성</span><span class="sp-ic" aria-hidden="true"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></span></button>
   </div>
   <aside class="side" id="side" aria-label="속성 편집"></aside>
 </main>
@@ -841,7 +851,8 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   IC.spark = IC3.spark; IC.table = IC3.table; IC.rel = IC3.rel;
   IC.key3 = IC3.key; IC.link3 = IC3.link;
   function ph(icon, title, sub, actions) {
-    return '<div class="ph">' + (icon ? '<span class="ph-ic">' + icon + '</span>' : '') + '<div class="ph-tx"><div class="ph-t">' + title + '</div><div class="ph-s">' + sub + '</div></div>' + (actions || '') + '</div>';
+    return '<div class="ph">' + (icon ? '<span class="ph-ic">' + icon + '</span>' : '') + '<div class="ph-tx"><div class="ph-t">' + title + '</div><div class="ph-s">' + sub + '</div></div>' + (actions || '') +
+      '<button type="button" class="ib side-close" id="side-close" aria-controls="side" aria-label="속성 패널 닫기" title="속성 패널 닫기 (Ctrl+\\)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg></button></div>';
   }
   var sheetMin = null;  /* mobile bottom sheet: null = automatic (folded when nothing is selected) */
   function mobile() { return window.matchMedia('(max-width: 860px)').matches; }
@@ -909,10 +920,13 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
         '<li><span>표 복사 · 붙여넣기</span><span><kbd>Ctrl</kbd><kbd>C</kbd> · <kbd>Ctrl</kbd><kbd>V</kbd></span></li>' +
         '<li><span>선택한 것 지우기</span><span><kbd>Delete</kbd></span></li>' +
         '<li><span>도구 해제 · 선택 해제</span><span><kbd>Esc</kbd></span></li>' +
+        '<li><span>속성 패널 닫기 · 열기</span><span><kbd>Ctrl</kbd><kbd>\\</kbd></span></li>' +
         '<li><span>화면 이동 · 확대</span><span>빈 곳 끌기 · 휠</span></li></ul></div>';
     }
     side.innerHTML = html;
     sheetApply();
+    var pt = document.getElementById('side-pill-t');
+    if (pt) pt.textContent = sel && sel.type === 't' && T(sel.id) ? (T(sel.id).name || '(이름 없음)') : sel && sel.type === 'r' && R(sel.id) ? T(R(sel.id).parent).name + ' → ' + T(R(sel.id).child).name : '속성';
   }
 
   /* ---------------- history & persistence ---------------- */
@@ -1321,17 +1335,20 @@ stage.addEventListener('dblclick', function (e) {
   }, { passive: false });
 
   /* right inspector panel: open / close (remembered per browser) */
-  var sideBtn = $('#side-toggle'), work = $('.work');
-  function setSide(open) {
+  var work = $('.work'), sideOpenBtn = $('#side-open');
+  function setSide(open, focus) {
     work.classList.toggle('noside', !open);
-    sideBtn.setAttribute('aria-pressed', String(open));
-    var t = open ? '속성 패널 닫기' : '속성 패널 열기';
-    sideBtn.setAttribute('aria-label', t); sideBtn.title = t;
     try { localStorage.setItem('erd-side-open', open ? '1' : '0'); } catch (x) { /* ignore */ }
+    if (focus) { var f = open ? document.getElementById('side-close') : sideOpenBtn; if (f) f.focus(); }
   }
+  function toggleSide(focus) { if (!mobile()) setSide(work.classList.contains('noside'), focus); }
   var sideSaved = null; try { sideSaved = localStorage.getItem('erd-side-open'); } catch (x) { /* ignore */ }
   setSide(sideSaved !== '0');
-  sideBtn.addEventListener('click', function () { setSide(work.classList.contains('noside')); });
+  sideOpenBtn.addEventListener('click', function () { setSide(true, true); });
+  side.addEventListener('click', function (e) { if (e.target.closest('#side-close')) setSide(false, true); });
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && (e.key === '\\' || e.code === 'Backslash')) { e.preventDefault(); toggleSide(false); }
+  });
 
   document.addEventListener('keydown', function (e) {
     var tag = (e.target.tagName || '').toLowerCase(), typing = tag === 'input' || tag === 'textarea' || tag === 'select';
