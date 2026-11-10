@@ -861,6 +861,9 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     side.classList.toggle('min', min);
     var h = side.querySelector('.ph'); if (h) { h.setAttribute('aria-expanded', String(!min)); }
   }
+  var lastSelKey = '', sidePinned, sideDismissed;
+  function isSideOpen() { return sidePinned !== false || (!!sel && !sideDismissed); }
+  function applySide() { var w = document.querySelector('.work'); if (w) w.classList.toggle('noside', !isSideOpen()); }
   function renderSide() {
     var html = '';
     if (sel && sel.type === 't' && T(sel.id)) {
@@ -925,6 +928,9 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     }
     side.innerHTML = html;
     sheetApply();
+    var selKey = sel ? sel.type + sel.id : '';
+    if (selKey !== lastSelKey) { lastSelKey = selKey; sideDismissed = false; }
+    applySide();
     var pt = document.getElementById('side-pill-t');
     if (pt) pt.textContent = sel && sel.type === 't' && T(sel.id) ? (T(sel.id).name || '(이름 없음)') : sel && sel.type === 'r' && R(sel.id) ? T(R(sel.id).parent).name + ' → ' + T(R(sel.id).child).name : '속성';
   }
@@ -1335,20 +1341,23 @@ stage.addEventListener('dblclick', function (e) {
   }, { passive: false });
 
   /* right inspector panel: open / close (remembered per browser) */
-  var work = $('.work'), sideOpenBtn = $('#side-open');
-  function setSide(open, focus) {
-    work.classList.toggle('noside', !open);
+  /* pinned = the user's saved choice. When unpinned, the panel still pops open while a table or
+     relation is selected and hides again once the selection is cleared (or the user closes it). */
+  var sideOpenBtn = $('#side-open');
+  var sidePinned = true, sideDismissed = false;
+  try { sidePinned = localStorage.getItem('erd-side-open') !== '0'; } catch (x) { /* ignore */ }
+  function pinSide(open, focus) {
+    sidePinned = open; sideDismissed = !open;
     try { localStorage.setItem('erd-side-open', open ? '1' : '0'); } catch (x) { /* ignore */ }
-    if (focus) { var f = open ? document.getElementById('side-close') : sideOpenBtn; if (f) f.focus(); }
+    applySide();
+    if (focus) { var f = isSideOpen() ? document.getElementById('side-close') : sideOpenBtn; if (f) f.focus(); }
   }
-  function toggleSide(focus) { if (!mobile()) setSide(work.classList.contains('noside'), focus); }
-  var sideSaved = null; try { sideSaved = localStorage.getItem('erd-side-open'); } catch (x) { /* ignore */ }
-  setSide(sideSaved !== '0');
-  sideOpenBtn.addEventListener('click', function () { setSide(true, true); });
-  side.addEventListener('click', function (e) { if (e.target.closest('#side-close')) setSide(false, true); });
+  sideOpenBtn.addEventListener('click', function () { pinSide(true, true); });
+  side.addEventListener('click', function (e) { if (e.target.closest('#side-close')) pinSide(false, true); });
   document.addEventListener('keydown', function (e) {
-    if ((e.ctrlKey || e.metaKey) && (e.key === '\\' || e.code === 'Backslash')) { e.preventDefault(); toggleSide(false); }
+    if ((e.ctrlKey || e.metaKey) && (e.key === '\\' || e.code === 'Backslash')) { e.preventDefault(); if (!mobile()) pinSide(!isSideOpen(), false); }
   });
+  applySide();
 
   document.addEventListener('keydown', function (e) {
     var tag = (e.target.tagName || '').toLowerCase(), typing = tag === 'input' || tag === 'textarea' || tag === 'select';
