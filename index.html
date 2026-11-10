@@ -225,6 +225,8 @@ select.btn { padding-right: 8px; }
 
 /* ===== v13 chrome refresh ===== */
 .bar { gap: 10px 12px; padding: 0 14px; height: 56px; }
+@media (max-width: 1480px) { .bar { gap: 8px; } }
+@media (max-width: 1400px) { .brand .bt { display: none; } }
 .brand { align-items: center; gap: 10px; }
 .logo { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: #fff; flex: none; }
 .logo svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -441,14 +443,15 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   <button class="btn ghost sq" id="undo" type="button" disabled aria-label="실행 취소" title="실행 취소 (Ctrl+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
   <button class="btn ghost sq" id="redo" type="button" disabled aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
   <span class="vr" aria-hidden="true"></span><select class="btn" id="example" aria-label="예제 불러오기">
-    <option value="">예제 불러오기</option>
+    <option value="">예제</option>
     <option value="school">학생·반·과목·수강</option>
     <option value="shop">쇼핑몰</option>
     <option value="blank">빈 판</option>
   </select>
   <button class="btn" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
-  <button class="btn" id="cloud-btn" type="button" title="Supabase에 저장·불러오기·공유"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">클라우드</span></button>
-  <button class="btn" id="show-json" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>저장·불러오기</button></header>
+  <button class="btn ghost sq" id="show-json" type="button" aria-label="JSON 내보내기·가져오기" title="JSON 내보내기·가져오기"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
+  <button class="btn" id="cloud-btn" type="button" title="로그인하고 클라우드에 저장"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">로그인</span></button>
+  <button class="btn primary" id="cloud-save" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span id="cloud-save-label">저장</span></button></header>
 
 <div class="pop" id="view-pop" hidden role="dialog" aria-label="보기 설정">
   <p class="pop-t">선 모양</p>
@@ -937,7 +940,10 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
 
   /* ---------------- history & persistence ---------------- */
   function snapshot() { return JSON.stringify(S); }
-  function persist() { try { localStorage.setItem(KEY, snapshot()); } catch (e) { /* ignore */ } }
+  function persist() {
+    try { localStorage.setItem(KEY, snapshot()); } catch (e) { /* ignore */ }
+    if (window.ERD && window.ERD.onChange) window.ERD.onChange();
+  }
   function updateUndo() { $('#undo').disabled = hist.length < 2; $('#redo').disabled = !redo.length; }
   function commit() { syncAll(); hist.push(snapshot()); if (hist.length > 80) hist.shift(); redo.length = 0; persist(); updateUndo(); }
   function loadState(json) {
@@ -1406,7 +1412,7 @@ stage.addEventListener('dblclick', function (e) {
   function openModal(m) {
     var ta = $('#m-text');
     if (m === 'sql') { $('#m-title').textContent = 'SQL 보기'; ta.value = genSQL(); ta.readOnly = true; $('#m-note').textContent = '표 사이의 순서와 FK까지 포함한 CREATE TABLE 문이에요.'; $('#m-apply').hidden = true; }
-    else { $('#m-title').textContent = '저장·불러오기'; ta.value = JSON.stringify(S, null, 1); ta.readOnly = false; $('#m-note').textContent = '내용을 복사해 두었다가 아래 칸에 붙여넣고 불러올 수 있어요.'; $('#m-apply').hidden = false; }
+    else { $('#m-title').textContent = 'JSON 내보내기·가져오기'; ta.value = JSON.stringify(S, null, 1); ta.readOnly = false; $('#m-note').textContent = '내용을 복사해 두었다가 아래 칸에 붙여넣고 불러올 수 있어요.'; $('#m-apply').hidden = false; }
     $('#veil').hidden = false; ta.focus();
   }
   function closeModal() { $('#veil').hidden = true; }
@@ -1442,7 +1448,8 @@ stage.addEventListener('dblclick', function (e) {
     isEmpty: function () { return !S.tables.length; },
     firstName: function () { return S.tables.length ? S.tables[0].name : ''; },
     hint: hint,
-    onReset: null
+    onReset: null,
+    onChange: null
   };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { mcache = {}; drawCanvas(); fit(); });
 })();

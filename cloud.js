@@ -1,8 +1,10 @@
-/* Supabase 연결: 간편 로그인, 내 ERD 저장·불러오기, 읽기 전용 공유 링크 */
+/* Supabase 연결: 간편 로그인, 내 ERD 저장·불러오기, 읽기 전용 공유 링크
+   흐름: 처음 한 번만 이름을 정해 저장하면, 그 뒤로는 헤더의 저장 버튼이나 Ctrl+S로 바로 덮어써요. */
 (function () {
   'use strict';
   var CFG = window.ERD_CONFIG || {};
   var CUR_KEY = 'erd-cloud-current';
+  var BLANK = { tables: [], rels: [], seq: 1 };
   var PROVIDERS = {
     google: { label: 'Google로 계속하기', cls: 'google',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.5 12.27c0-.79-.07-1.54-.2-2.27H12v4.3h5.9a5.05 5.05 0 0 1-2.2 3.3v2.75h3.55c2.08-1.92 3.25-4.74 3.25-8.08z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.56-2.75c-.98.66-2.24 1.05-3.72 1.05-2.86 0-5.29-1.93-6.15-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.85 14.1a6.6 6.6 0 0 1 0-4.2V7.06H2.18a11 11 0 0 0 0 9.88l3.67-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.2 1.64l3.15-3.15A10.95 10.95 0 0 0 2.18 7.06l3.67 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>' },
@@ -22,9 +24,18 @@
     '.cv .who .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }',
     '.cv .who .nm small { display: block; color: var(--muted); font-size: 12px; }',
     '.cv .blk { display: flex; flex-direction: column; gap: 8px; }',
-    '.cv .blk > b { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }',
+    '.cv .blk > b, .cv .bh > b { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; color: var(--muted); }',
+    '.cv .bh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }',
+    '.cv .bh .btn { height: 30px; padding: 0 10px; font-size: 12.5px; }',
     '.cv .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }',
     '.cv .row .in { flex: 1; min-width: 160px; }',
+    '.cv .doc { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }',
+    '.cv .doc .ttl { font-weight: 600; font-size: 15px; }',
+    '.cv .st { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }',
+    '.cv .st::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }',
+    '.cv .st.dirty { color: #b45309; }',
+    '.cv .st.dirty::before { background: #f59e0b; }',
+    '.cv .btn kbd { margin-left: 4px; font-size: 10.5px; opacity: .85; }',
     '.cv .muted { color: var(--muted); font-size: 12.5px; line-height: 1.6; margin: 0; }',
     '.cv .err { color: var(--danger); }',
     '.cv .sso { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; height: 44px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink); font-weight: 600; font-size: 14px; }',
@@ -32,7 +43,7 @@
     '.cv .sso.kakao { background: #FEE500; border-color: #FEE500; color: #191919; }',
     '.cv .sso.github { background: #1f2328; border-color: #1f2328; color: #fff; }',
     '.cv .sso:hover { filter: brightness(.97); }',
-    '.cv .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; max-height: 260px; overflow-y: auto; }',
+    '.cv .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; max-height: 280px; overflow-y: auto; }',
     '.cv .list li { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; font-size: 13.5px; }',
     '.cv .list li + li { border-top: 1px solid var(--line); }',
     '.cv .list li.on { background: var(--accent-soft); }',
@@ -41,22 +52,30 @@
     '.cv .list .btn { height: 30px; padding: 0 10px; font-size: 12.5px; }',
     '.cv .list .empty { justify-content: center; color: var(--muted); padding: 16px; }',
     '.cv .tag { font-size: 10.5px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 0 5px; margin-left: 6px; }',
-    '#cloud-btn.on { color: var(--accent); border-color: var(--accent); }'
+    '#cloud-btn.on { color: var(--ink); }',
+    '#cloud-label { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
+    '#cloud-save.clean { background: var(--panel); border-color: var(--line); color: var(--muted); }',
+    '#cloud-save.clean:hover { color: var(--ink-2); }'
   ].join('\n');
   var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
   var veil = document.createElement('div');
   veil.className = 'veil cv'; veil.hidden = true;
-  veil.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="cv-title"><div class="hd"><h3 id="cv-title">클라우드 저장</h3><button class="btn ghost sq" type="button" data-a="close" aria-label="닫기">✕</button></div><div class="blk" id="cv-body"></div></div>';
+  veil.innerHTML = '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="cv-title"><div class="hd"><h3 id="cv-title">내 ERD</h3><button class="btn ghost sq" type="button" data-a="close" aria-label="닫기">✕</button></div><div class="blk" id="cv-body"></div></div>';
   document.body.appendChild(veil);
   var body = veil.querySelector('#cv-body');
   var btn = document.getElementById('cloud-btn'), label = document.getElementById('cloud-label');
+  var saveBtn = document.getElementById('cloud-save'), saveLabel = document.getElementById('cloud-save-label');
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function hint(t, warn, ms) { if (window.ERD) window.ERD.hint(t, warn, ms || 2800); }
   function fmt(d) { try { return new Date(d).toLocaleString('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return d; } }
+  /* short fingerprint of the board, so we can tell whether it changed since the last cloud save */
+  function hash(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return s.length + ':' + h; }
+  function boardHash() { return hash(JSON.stringify(window.ERD.get())); }
   function getCur() { try { return JSON.parse(localStorage.getItem(CUR_KEY)) || null; } catch (e) { return null; } }
   function setCur(c) { cur = c; try { if (c) localStorage.setItem(CUR_KEY, JSON.stringify(c)); else localStorage.removeItem(CUR_KEY); } catch (e) { /* ignore */ } paintBtn(); }
+  function isDirty() { return !!cur && cur.h !== boardHash(); }
 
   var configured = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
   var sb = null, user = null, cur = getCur(), list = [], busy = false, msg = '', msgErr = false;
@@ -66,14 +85,23 @@
 
   function paintBtn() {
     btn.classList.toggle('on', !!user);
-    label.textContent = user ? (cur ? '저장됨: ' + (cur.title.length > 12 ? cur.title.slice(0, 12) + '…' : cur.title) : '클라우드') : '클라우드';
+    label.textContent = !user ? '로그인' : cur ? cur.title : '내 ERD';
+    btn.title = !user ? '로그인하고 클라우드에 저장' : '내 ERD 목록 · 공유 · 계정';
+    saveBtn.hidden = !user;
+    var dirty = isDirty(), clean = !!cur && !dirty;
+    saveBtn.classList.toggle('clean', clean);
+    saveBtn.classList.toggle('primary', !clean);
+    saveLabel.textContent = busy ? '저장 중…' : clean ? '저장됨' : '저장';
+    saveBtn.title = (cur ? '“' + cur.title + '”에 저장' : '클라우드에 새로 저장') + ' (Ctrl+S)';
   }
   function say(t, err) { msg = t; msgErr = !!err; render(); }
+  function defaultTitle() { return window.ERD && window.ERD.firstName() ? window.ERD.firstName() + ' ERD' : '제목 없는 ERD'; }
 
   function render() {
-    var h = '';
+    if (veil.hidden) return;
+    var h = '', dis = busy ? ' disabled' : '';
     if (!configured) {
-      h += '<p class="muted">아직 Supabase가 연결되지 않았어요. 저장소의 <b>config.js</b>에 Project URL과 anon 키를 넣으면 로그인하고 ERD를 저장할 수 있어요. 자세한 방법은 <b>docs/SUPABASE.md</b>를 보세요.</p>';
+      h += '<p class="muted">아직 Supabase가 연결되지 않았어요. 저장소의 <b>config.js</b>에 Project URL과 anon 키를 넣으면 로그인하고 ERD를 저장할 수 있어요.</p>';
     } else if (!sb) {
       h += '<p class="muted err">Supabase 라이브러리를 불러오지 못했어요. 인터넷 연결을 확인하고 새로고침해 주세요.</p>';
     } else if (!user) {
@@ -89,30 +117,38 @@
         '<span class="nm">' + esc(name) + (user.email && user.email !== name ? '<small>' + esc(user.email) + '</small>' : '') + '</span>' +
         '<button class="btn" type="button" data-a="logout">로그아웃</button></div>';
 
-      var title = cur ? cur.title : (window.ERD && window.ERD.firstName() ? window.ERD.firstName() + ' ERD' : '제목 없는 ERD');
-      h += '<div class="blk"><b>지금 보고 있는 ERD</b><div class="row"><input class="in" id="cv-name" maxlength="200" value="' + esc(title) + '" aria-label="ERD 이름" autocomplete="off">' +
-        '<button class="btn primary" type="button" data-a="save"' + (busy ? ' disabled' : '') + '>' + (cur ? '저장' : '클라우드에 저장') + '</button>' +
-        (cur ? '<button class="btn" type="button" data-a="saveas"' + (busy ? ' disabled' : '') + '>새로 저장</button>' : '') + '</div>' +
-        (cur ? '<p class="muted">클라우드의 “' + esc(cur.title) + '”에 덮어써요. 다른 이름으로 남기려면 새로 저장을 누르세요.</p>' : '<p class="muted">아직 클라우드에 없는 ERD예요.</p>') + '</div>';
-
       if (cur) {
+        var dirty = isDirty();
+        h += '<div class="blk"><b>지금 열린 ERD</b><div class="doc">' +
+          '<input class="in ttl" id="cv-ttl" maxlength="200" value="' + esc(cur.title) + '" aria-label="ERD 이름 (바꾸면 바로 반영돼요)" title="눌러서 이름 바꾸기" autocomplete="off">' +
+          '<span class="st' + (dirty ? ' dirty' : '') + '">' + (dirty ? '저장하지 않은 변경 사항이 있어요' : '저장됨' + (cur.updated_at ? ' · ' + esc(fmt(cur.updated_at)) : '')) + '</span>' +
+          '<div class="row"><button class="btn primary" type="button" data-a="save"' + (busy || !dirty ? ' disabled' : '') + '>저장<kbd>Ctrl+S</kbd></button>' +
+          '<button class="btn" type="button" data-a="saveas"' + dis + '>사본으로 저장</button></div></div></div>';
+
         var link = location.origin + location.pathname + '?share=' + cur.share_id;
-        h += '<div class="blk"><b>공유</b><label class="switch" for="cv-pub"><input type="checkbox" id="cv-pub" data-a="pub"' + (cur.is_public ? ' checked' : '') + (busy ? ' disabled' : '') + '><span class="tr"></span>링크가 있는 사람은 볼 수 있음 (읽기 전용)</label>' +
+        h += '<div class="blk"><b>공유</b><label class="switch" for="cv-pub"><input type="checkbox" id="cv-pub" data-a="pub"' + (cur.is_public ? ' checked' : '') + dis + '><span class="tr"></span>링크가 있는 사람은 볼 수 있음 (읽기 전용)</label>' +
           (cur.is_public ? '<div class="row"><input class="in mono" id="cv-link" readonly value="' + esc(link) + '" aria-label="공유 링크"><button class="btn" type="button" data-a="copy">링크 복사</button></div>' +
-            '<p class="muted">받은 사람은 그림을 보고 고쳐 볼 수 있지만, 원본은 바뀌지 않아요. 로그인하면 자기 것으로 저장할 수 있어요.</p>' : '') + '</div>';
+            '<p class="muted">받은 사람은 그림을 보고 고쳐 볼 수 있지만, 원본은 바뀌지 않아요.</p>' : '') + '</div>';
+      } else {
+        h += '<div class="blk"><b>지금 보고 있는 ERD</b><p class="muted">아직 클라우드에 없어요. 이름을 정해 한 번만 저장하면, 다음부터는 헤더의 <b>저장</b> 버튼이나 <b>Ctrl+S</b>로 바로 저장돼요.</p>' +
+          '<div class="row"><input class="in" id="cv-name" maxlength="200" value="' + esc(defaultTitle()) + '" aria-label="ERD 이름" autocomplete="off">' +
+          '<button class="btn primary" type="button" data-a="create"' + dis + '>클라우드에 저장</button></div></div>';
       }
 
-      h += '<div class="blk"><b>내 ERD</b><ul class="list">';
+      h += '<div class="blk"><div class="bh"><b>내 ERD</b><button class="btn" type="button" data-a="new"' + dis + '>+ 새 ERD</button></div><ul class="list">';
       if (!list.length) h += '<li class="empty">' + (busy ? '불러오는 중…' : '저장한 ERD가 없어요') + '</li>';
       list.forEach(function (e) {
-        h += '<li class="' + (cur && cur.id === e.id ? 'on' : '') + '"><span class="t">' + esc(e.title) + (e.is_public ? '<span class="tag">공유</span>' : '') + '<small>' + esc(fmt(e.updated_at)) + '</small></span>' +
-          '<button class="btn" type="button" data-a="open" data-id="' + e.id + '">열기</button>' +
-          '<button class="btn danger" type="button" data-a="del" data-id="' + e.id + '" aria-label="' + esc(e.title) + ' 삭제">삭제</button></li>';
+        var on = cur && cur.id === e.id;
+        h += '<li class="' + (on ? 'on' : '') + '"><span class="t">' + esc(e.title) + (on ? '<span class="tag">열림</span>' : '') + (e.is_public ? '<span class="tag">공유</span>' : '') + '<small>' + esc(fmt(e.updated_at)) + '</small></span>' +
+          (on ? '' : '<button class="btn" type="button" data-a="open" data-id="' + e.id + '"' + dis + '>열기</button>') +
+          '<button class="btn danger" type="button" data-a="del" data-id="' + e.id + '" aria-label="' + esc(e.title) + ' 삭제"' + dis + '>삭제</button></li>';
       });
       h += '</ul></div>';
     }
     if (msg) h += '<p class="muted' + (msgErr ? ' err' : '') + '" role="status">' + esc(msg) + '</p>';
+    var focusId = document.activeElement && veil.contains(document.activeElement) ? document.activeElement.id : '';
     body.innerHTML = h;
+    if (focusId) { var f = document.getElementById(focusId); if (f && !f.disabled) f.focus(); }
   }
 
   function refreshList() {
@@ -124,39 +160,71 @@
       list = r.data || [];
       if (cur) {  /* keep the current pointer in sync (or drop it if the row is gone) */
         var row = list.filter(function (e) { return e.id === cur.id; })[0];
-        setCur(row ? { id: row.id, title: row.title, is_public: row.is_public, share_id: row.share_id } : null);
+        setCur(row ? { id: row.id, title: row.title, is_public: row.is_public, share_id: row.share_id, updated_at: row.updated_at, h: cur.h } : null);
       }
-      render();
+      render(); paintBtn();
     });
   }
 
-  function open() { msg = ''; veil.hidden = false; render(); if (user) refreshList(); var f = veil.querySelector('button, input'); if (f) f.focus(); }
+  function open(focusName) {
+    msg = ''; veil.hidden = false; render(); if (user) refreshList();
+    var f = (focusName && document.getElementById('cv-name')) || veil.querySelector('button, input');
+    if (f) { f.focus(); if (f.select && f.id === 'cv-name') f.select(); }
+  }
   function close() { veil.hidden = true; }
 
-  function save(asNew) {
-    var nameEl = document.getElementById('cv-name'), title = (nameEl && nameEl.value.trim()) || '제목 없는 ERD';
-    var data = window.ERD.get();
-    busy = true; render();
+  var COLS = 'id,title,is_public,share_id,updated_at';
+  function doSave(title, asNew) {
+    if (busy) return;
+    var data = window.ERD.get(), h = hash(JSON.stringify(data));
+    busy = true; paintBtn(); render();
     var q = (!asNew && cur)
-      ? sb.from('erds').update({ title: title, data: data }).eq('id', cur.id).select('id,title,is_public,share_id').single()
-      : sb.from('erds').insert({ title: title, data: data }).select('id,title,is_public,share_id').single();
+      ? sb.from('erds').update({ data: data }).eq('id', cur.id).select(COLS).single()
+      : sb.from('erds').insert({ title: title, data: data }).select(COLS).single();
     q.then(function (r) {
       busy = false;
-      if (r.error) { say('저장하지 못했어요: ' + r.error.message, true); return; }
-      setCur(r.data); msg = ''; hint('“' + r.data.title + '”을(를) 클라우드에 저장했어요');
-      refreshList();
+      if (r.error) { paintBtn(); say('저장하지 못했어요: ' + r.error.message, true); hint('저장하지 못했어요', true); return; }
+      r.data.h = h; setCur(r.data); msg = '';
+      hint(asNew || !cur ? '“' + r.data.title + '”(으)로 클라우드에 저장했어요' : '저장했어요');
+      if (!veil.hidden) refreshList();
+    }, function () { busy = false; paintBtn(); hint('저장하지 못했어요. 인터넷 연결을 확인해 주세요', true); });
+  }
+
+  /* header 저장 button / Ctrl+S */
+  function quickSave() {
+    if (!sb || !user) { open(); return; }
+    if (!cur) { open(true); return; }
+    if (!isDirty()) { hint('이미 저장돼 있어요'); return; }
+    doSave(cur.title, false);
+  }
+
+  function rename(t) {
+    t = t.trim();
+    if (!cur || !t || t === cur.title) { render(); return; }
+    sb.from('erds').update({ title: t }).eq('id', cur.id).select(COLS).single().then(function (r) {
+      if (r.error) { say('이름을 바꾸지 못했어요: ' + r.error.message, true); return; }
+      r.data.h = cur.h; setCur(r.data); refreshList();
     });
   }
 
+  function okToLeave() { return !isDirty() || confirm('“' + cur.title + '”에 저장하지 않은 변경 사항이 있어요. 저장하지 않고 넘어갈까요?'); }
+
   function load(id) {
+    if (!okToLeave()) return;
     busy = true; render();
-    sb.from('erds').select('id,title,is_public,share_id,data').eq('id', id).single().then(function (r) {
+    sb.from('erds').select('id,title,is_public,share_id,updated_at,data').eq('id', id).single().then(function (r) {
       busy = false;
       if (r.error) { say('불러오지 못했어요: ' + r.error.message, true); return; }
       try { window.ERD.load(r.data.data); } catch (e) { say('저장된 내용의 형식이 맞지 않아요.', true); return; }
-      setCur({ id: r.data.id, title: r.data.title, is_public: r.data.is_public, share_id: r.data.share_id });
-      close(); hint('“' + r.data.title + '”을(를) 불러왔어요');
+      setCur({ id: r.data.id, title: r.data.title, is_public: r.data.is_public, share_id: r.data.share_id, updated_at: r.data.updated_at, h: boardHash() });
+      close(); hint('“' + r.data.title + '”을(를) 열었어요. 고친 뒤 Ctrl+S로 저장하세요', false, 3600);
     });
+  }
+
+  function newDoc() {
+    if (!okToLeave()) return;
+    window.ERD.load(JSON.parse(JSON.stringify(BLANK)));
+    setCur(null); close(); hint('새 ERD를 시작했어요. 저장 버튼을 누르면 이름을 정해 저장해요', false, 3600);
   }
 
   function remove(id) {
@@ -171,16 +239,16 @@
 
   function setPublic(on) {
     busy = true; render();
-    sb.from('erds').update({ is_public: on }).eq('id', cur.id).select('id,title,is_public,share_id').single().then(function (r) {
+    sb.from('erds').update({ is_public: on }).eq('id', cur.id).select(COLS).single().then(function (r) {
       busy = false;
       if (r.error) { say('공유 설정을 바꾸지 못했어요: ' + r.error.message, true); return; }
-      setCur(r.data); msg = ''; refreshList();
+      r.data.h = cur.h; setCur(r.data); msg = ''; refreshList();
     });
   }
 
   veil.addEventListener('click', function (e) {
     if (e.target === veil) { close(); return; }
-    var b = e.target.closest('[data-a]'); if (!b) return;
+    var b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
     var a = b.getAttribute('data-a');
     if (a === 'close') close();
     else if (a === 'login') {
@@ -188,8 +256,10 @@
         .then(function (r) { if (r.error) say('로그인을 시작하지 못했어요: ' + r.error.message, true); });
     }
     else if (a === 'logout') sb.auth.signOut().then(function () { setCur(null); list = []; render(); });
-    else if (a === 'save') save(false);
-    else if (a === 'saveas') save(true);
+    else if (a === 'save') doSave(cur.title, false);
+    else if (a === 'create') { var n = document.getElementById('cv-name'); doSave((n && n.value.trim()) || defaultTitle(), true); }
+    else if (a === 'saveas') doSave(cur.title + ' 사본', true);
+    else if (a === 'new') newDoc();
     else if (a === 'open') load(b.getAttribute('data-id'));
     else if (a === 'del') remove(b.getAttribute('data-id'));
     else if (a === 'copy') {
@@ -197,23 +267,35 @@
       try { navigator.clipboard.writeText(inp.value).then(function () { b.textContent = '복사됨'; setTimeout(function () { b.textContent = '링크 복사'; }, 1600); }); } catch (x) { /* selected for manual copy */ }
     }
   });
-  veil.addEventListener('change', function (e) { if (e.target.getAttribute('data-a') === 'pub') setPublic(e.target.checked); });
+  veil.addEventListener('change', function (e) {
+    if (e.target.getAttribute('data-a') === 'pub') setPublic(e.target.checked);
+    else if (e.target.id === 'cv-ttl') rename(e.target.value);
+  });
   /* keep editor shortcuts (Delete, Ctrl+Z ...) from firing while this dialog is open */
   veil.addEventListener('keydown', function (e) {
     e.stopPropagation();
     if (e.key === 'Escape') close();
-    if (e.key === 'Enter' && e.target.id === 'cv-name') save(false);
+    if (e.key === 'Enter' && e.target.id === 'cv-name') { e.preventDefault(); doSave(e.target.value.trim() || defaultTitle(), true); }
+    if (e.key === 'Enter' && e.target.id === 'cv-ttl') { e.preventDefault(); e.target.blur(); }
   });
-  btn.addEventListener('click', open);
+  btn.addEventListener('click', function () { open(false); });
+  saveBtn.addEventListener('click', quickSave);
+  document.addEventListener('keydown', function (e) {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS')) { e.preventDefault(); quickSave(); }
+  }, true);
 
   /* switching to an example / blank board / pasted JSON detaches from the cloud copy */
-  if (window.ERD) window.ERD.onReset = function () { setCur(null); };
+  if (window.ERD) {
+    window.ERD.onReset = function () { setCur(null); };
+    var tick = 0;
+    window.ERD.onChange = function () { if (tick) return; tick = setTimeout(function () { tick = 0; paintBtn(); if (!veil.hidden && !busy) render(); }, 60); };
+  }
 
   if (sb) {
     sb.auth.getSession().then(function (r) { user = r.data && r.data.session ? r.data.session.user : null; paintBtn(); });
     sb.auth.onAuthStateChange(function (ev, session) {
       var was = user; user = session ? session.user : null; paintBtn();
-      if (ev === 'SIGNED_IN' && !was) { hint('로그인했어요. 클라우드 버튼에서 저장할 수 있어요'); }
+      if (ev === 'SIGNED_IN' && !was) { hint('로그인했어요. 저장 버튼이나 Ctrl+S로 저장할 수 있어요'); }
       if (!veil.hidden) { render(); if (user) refreshList(); }
     });
   }
