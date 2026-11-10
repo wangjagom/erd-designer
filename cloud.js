@@ -93,6 +93,16 @@
     saveBtn.classList.toggle('primary', !clean);
     saveLabel.textContent = busy ? '저장 중…' : clean ? '저장됨' : '저장';
     saveBtn.title = (cur ? '“' + cur.title + '”에 저장' : '클라우드에 새로 저장') + ' (Ctrl+S)';
+    var m = user ? (user.user_metadata || {}) : null;
+    try {
+      var st = {
+        configured: !!sb,
+        user: user ? { name: m.full_name || m.name || m.user_name || m.preferred_username || user.email || '사용자', email: user.email || '', avatar: m.avatar_url || m.picture || '' } : null,
+        title: cur ? cur.title : '', saved: !!cur, dirty: dirty, busy: busy, saveLabel: saveLabel.textContent
+      };
+      if (window.ERD) window.ERD.cloudState = st;  /* for scripts that load after this one */
+      document.dispatchEvent(new CustomEvent('erd:cloud', { detail: st }));
+    } catch (e) { /* ignore */ }
   }
   function say(t, err) { msg = t; msgErr = !!err; render(); }
   function defaultTitle() { return window.ERD && window.ERD.dbName && window.ERD.dbName() ? window.ERD.dbName() : window.ERD && window.ERD.firstName() ? window.ERD.firstName() + ' ERD' : '제목 없는 ERD'; }
