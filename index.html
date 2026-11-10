@@ -487,6 +487,24 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   .m-sel { max-width: 150px; height: 36px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--panel); font-size: 16px; }
   .side { padding-bottom: calc(28px + env(safe-area-inset-bottom)); }
 }
+/* version preview: read-only board with a bar on top */
+.pv-bar { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 10px; width: min(760px, calc(100% - 24px)); padding: 10px 10px 10px 16px; border-radius: 14px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); }
+.pv-bar[hidden] { display: none; }
+.pv-bar .pv-t { flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; }
+.pv-bar .pv-t b { display: block; font-size: 13.5px; }
+.pv-bar .pv-t span { display: block; opacity: .75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pv-bar button { height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: rgb(255 255 255 / .14); color: inherit; font-weight: 600; font-size: 13px; flex: none; }
+.pv-bar button:hover { background: rgb(255 255 255 / .24); }
+.pv-bar button.go { background: var(--accent); color: #fff; }
+html.previewing .bar > *, html.previewing .side, html.previewing .dock, html.previewing .side-pill { pointer-events: none; opacity: .5; }
+html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px; }
+@media (max-width: 860px) {
+  .pv-bar { flex-wrap: wrap; top: 8px; padding: 10px 12px; }
+  .pv-bar .pv-t { flex-basis: 100%; }
+  .pv-bar button { flex: 1; height: 40px; }
+  .pv-bar button.go { flex: 2.2; white-space: nowrap; }
+  html.previewing .dock { display: none; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -1032,20 +1050,40 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
 
   /* ---------------- history & persistence ---------------- */
   function snapshot() { return JSON.stringify(S); }
+  /* ---------------- version preview: show an old version read-only, then put the real board back ---------------- */
+  var preview = null;   /* { s: real board JSON, sel, V } while previewing */
+  function startPreview(d) {
+    if (!d || !Array.isArray(d.tables) || !Array.isArray(d.rels)) throw new Error('bad');
+    if (!preview) preview = { s: snapshot(), sel: sel, V: { x: V.x, y: V.y, k: V.k } };
+    if (tool) setTool(null);
+    toast('');
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    S = JSON.parse(JSON.stringify(d)); S.seq = S.seq || 1000; sel = null; pending = null; syncAll();
+    document.documentElement.classList.add('previewing');
+    drawCanvas(); renderSide(); fit();
+  }
+  function endPreview() {
+    if (!preview) return;
+    var p = preview; preview = null;
+    document.documentElement.classList.remove('previewing');
+    S = JSON.parse(p.s); sel = p.sel && (p.sel.type === 't' ? T(p.sel.id) : R(p.sel.id)) ? p.sel : null; pending = null;
+    V = p.V; applyView(); drawCanvas(); renderSide(); updateUndo();
+  }
   function persist() {
+    if (preview) return;
     try { localStorage.setItem(KEY, snapshot()); } catch (e) { /* ignore */ }
     if (window.ERD && window.ERD.onChange) window.ERD.onChange();
     try { document.dispatchEvent(new Event('erd:change')); } catch (e) { /* ignore */ }
   }
   function updateUndo() { $('#undo').disabled = hist.length < 2; $('#redo').disabled = !redo.length; }
-  function commit() { toast(''); syncAll(); hist.push(snapshot()); if (hist.length > 80) hist.shift(); redo.length = 0; persist(); updateUndo(); }
+  function commit() { if (preview) return; toast(''); syncAll(); hist.push(snapshot()); if (hist.length > 80) hist.shift(); redo.length = 0; persist(); updateUndo(); }
   function loadState(json) {
     S = JSON.parse(json);
     if (sel && !(sel.type === 't' ? T(sel.id) : R(sel.id))) sel = null;
     pending = null; drawCanvas(); renderSide(); updateUndo();
   }
-  function undo() { if (hist.length < 2) return; redo.push(hist.pop()); loadState(hist[hist.length - 1]); persist(); }
-  function redoIt() { if (!redo.length) return; var s = redo.pop(); hist.push(s); loadState(s); persist(); }
+  function undo() { if (preview || hist.length < 2) return; redo.push(hist.pop()); loadState(hist[hist.length - 1]); persist(); }
+  function redoIt() { if (preview || !redo.length) return; var s = redo.pop(); hist.push(s); loadState(s); persist(); }
   function freshStart(s) { S = s; sel = null; pending = null; syncAll(); hist = [snapshot()]; redo = []; persist(); drawCanvas(); renderSide(); updateUndo(); fit(); }
 
   /* ---------------- examples ---------------- */
@@ -1094,6 +1132,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
   /* ---------------- actions ---------------- */
   function selectIt(s) { pickFor = null; sheetMin = null; sel = s; drawCanvas(); renderSide(); }
   function addTableAt(x, y) {
+    if (preview) return;
     var n = 1; while (S.tables.some(function (t) { return t.name === 'TABLE_' + n; })) n++;
     var t = newTable('TABLE_' + n, '', Math.round(x / 10) * 10, Math.round(y / 10) * 10, [['ID', 'INT', 1], ['NAME', 'VARCHAR(50)']]);
     commit(); selectIt({ type: 't', id: t.id });
@@ -1198,7 +1237,7 @@ html.embed .brand, html.embed .brand + .vr { display: none; }
     hint('방향을 바꿨어요. 이제 ' + Ch.name + '가 부모(1쪽), ' + P.name + '가 자식(N쪽)이고 FK는 ' + P.name + '에 생겼어요' + (wasIdent ? '. 식별 관계는 비식별로 바뀌었어요' : ''), false, 4200);
   }
   function deleteSel() {
-    if (!sel) return;
+    if (!sel || preview) return;
     var msg = '관계를 지웠어요';
     if (sel.type === 't') {
       var gone = T(sel.id), nr = S.rels.filter(function (r) { return r.parent === sel.id || r.child === sel.id; }).length;
@@ -1483,6 +1522,7 @@ stage.addEventListener('dblclick', function (e) {
   document.addEventListener('keydown', function (e) {
     var tag = (e.target.tagName || '').toLowerCase(), typing = tag === 'input' || tag === 'textarea' || tag === 'select';
     if (!$('#veil').hidden) { if (e.key === 'Escape') closeModal(); return; }
+    if (preview) { if (e.key === 'Escape' && window.ERD.onPreviewExit) window.ERD.onPreviewExit(); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redoIt(); else undo(); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'y') { e.preventDefault(); redoIt(); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'c') {
@@ -1568,7 +1608,11 @@ stage.addEventListener('dblclick', function (e) {
 
   /* ---------------- bridge for cloud.js ---------------- */
   window.ERD = {
-    get: function () { return JSON.parse(snapshot()); },
+    get: function () { return JSON.parse(preview ? preview.s : snapshot()); },  /* always the real board, even while previewing */
+    preview: startPreview,
+    endPreview: endPreview,
+    isPreviewing: function () { return !!preview; },
+    onPreviewExit: null,
     load: function (d) { if (!d || !Array.isArray(d.tables) || !Array.isArray(d.rels)) throw new Error('bad'); d.seq = d.seq || 1000; freshStart(d); },
     isEmpty: function () { return !S.tables.length; },
     firstName: function () { return S.tables.length ? S.tables[0].name : ''; },

@@ -158,6 +158,7 @@
             if (!versions.length) h += '<li class="empty">아직 기록이 없어요</li>';
             versions.forEach(function (v) {
               h += '<li><span class="t">' + esc(fmt(v.created_at)) + '<span class="vk ' + esc(v.kind) + '">' + esc(KIND[v.kind] || v.kind) + '</span><small>' + esc(v.title) + '</small></span>' +
+                '<button class="btn" type="button" data-a="preview" data-id="' + v.id + '"' + dis + '>미리보기</button>' +
                 '<button class="btn" type="button" data-a="restore" data-id="' + v.id + '"' + dis + '>되돌리기</button></li>';
             });
             h += '</ul>';
@@ -226,15 +227,57 @@
     return out.length ? out.join('\n') : '표 내용은 같아요 (위치만 다를 수 있어요)';
   }
 
-  function restore(id) {
+  function fetchVersion(id, then) {
     var v = (versions || []).filter(function (x) { return String(x.id) === String(id); })[0];
     if (!v || busy) return;
     busy = true; render();
     sb.from('erd_versions').select('data').eq('id', v.id).single().then(function (r) {
       busy = false; render();
       if (r.error) { say('기록을 불러오지 못했어요: ' + r.error.message, true); return; }
-      var data = r.data.data;
-      if (!confirm(fmt(v.created_at) + ' (' + (KIND[v.kind] || v.kind) + ') 버전으로 되돌릴까요?\n\n지금과 비교하면:\n' + summarize(window.ERD.get(), data) + '\n\n지금 상태도 기록에 남아서 언제든 다시 돌아올 수 있어요.')) return;
+      then(v, r.data.data);
+    });
+  }
+  function vlabel(v) { return fmt(v.created_at) + ' (' + (KIND[v.kind] || v.kind) + ')'; }
+
+  function restore(id) {
+    fetchVersion(id, function (v, data) {
+      if (!confirm(vlabel(v) + ' 버전으로 되돌릴까요?\n\n지금과 비교하면:\n' + summarize(window.ERD.get(), data) + '\n\n지금 상태도 기록에 남아서 언제든 다시 돌아올 수 있어요.')) return;
+      applyRestore(v, data);
+    });
+  }
+
+  /* ---- preview: the old version is drawn read-only; a bar on top offers 목록 / 닫기 / 되돌리기 ---- */
+  var pv = null;
+  var pvBar = document.createElement('div');
+  pvBar.className = 'pv-bar'; pvBar.hidden = true; pvBar.setAttribute('role', 'region'); pvBar.setAttribute('aria-label', '버전 미리보기');
+  document.querySelector('.stage-wrap').appendChild(pvBar);
+  function previewVersion(id) {
+    fetchVersion(id, function (v, data) {
+      close();
+      try { window.ERD.preview(data); } catch (e) { hint('저장된 내용의 형식이 맞지 않아요', true); return; }
+      pv = { v: v, data: data };
+      pvBar.innerHTML = '<div class="pv-t"><b>미리보기 · ' + esc(vlabel(v)) + '</b><span>지금과 비교: ' + esc(summarize(window.ERD.get(), data).replace(/\n/g, ' · ')) + '</span></div>' +
+        '<button type="button" data-pv="back">목록</button><button type="button" data-pv="close">닫기</button><button type="button" class="go" data-pv="restore">이 버전으로 되돌리기</button>';
+      pvBar.hidden = false;
+      var g = pvBar.querySelector('.go'); if (g) g.focus();
+    });
+  }
+  function exitPreview(back) {
+    if (!pv) return;
+    pv = null; pvBar.hidden = true;
+    window.ERD.endPreview();
+    if (back) { open(false); versionsOpen = true; loadVersions(); }
+  }
+  pvBar.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pv]'); if (!b || !pv) return;
+    var a = b.getAttribute('data-pv'), v = pv.v, data = pv.data;
+    if (a === 'restore') { exitPreview(false); applyRestore(v, data); }
+    else exitPreview(a === 'back');
+  });
+  pvBar.addEventListener('keydown', function (e) { e.stopPropagation(); if (e.key === 'Escape') exitPreview(false); });
+  if (window.ERD) window.ERD.onPreviewExit = function () { exitPreview(false); };
+
+  function applyRestore(v, data) {
       var go = function () {
         busy = true; paintBtn(); render();
         sb.from('erds').update({ data: data, save_kind: 'restore' }).eq('id', cur.id).select(COLS).single().then(function (u) {
@@ -243,12 +286,12 @@
           try { window.ERD.load(JSON.parse(JSON.stringify(data))); } catch (e) { say('저장된 내용의 형식이 맞지 않아요.', true); return; }
           u.data.h = boardHash(); setCur(u.data);
           hint(fmt(v.created_at) + ' 버전으로 되돌렸어요', false, 3600);
-          loadVersions(); refreshList();
+          if (!veil.hidden) loadVersions();
+          refreshList();
         });
       };
       /* unsaved edits go up first, so the trigger keeps them as "되돌리기 전" */
       if (isDirty()) doSave(cur.title, false, 'auto', go); else go();
-    });
   }
 
   function savePrefs(patch) {
@@ -429,6 +472,7 @@
     else if (a === 'del') remove(b.getAttribute('data-id'));
     else if (a === 'versions') { versionsOpen = !versionsOpen; if (versionsOpen) loadVersions(); else render(); }
     else if (a === 'restore') restore(b.getAttribute('data-id'));
+    else if (a === 'preview') previewVersion(b.getAttribute('data-id'));
     else if (a === 'copy') {
       var inp = document.getElementById('cv-link'); inp.select();
       try { navigator.clipboard.writeText(inp.value).then(function () { b.textContent = '복사됨'; setTimeout(function () { b.textContent = '링크 복사'; }, 1600); }); } catch (x) { /* selected for manual copy */ }
