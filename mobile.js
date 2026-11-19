@@ -4,7 +4,7 @@
   'use strict';
   var mq = window.matchMedia('(max-width: 860px)');
   var $ = function (s) { return document.querySelector(s); };
-  var bar = $('.bar'), seg = bar.querySelector('.seg'), add = $('#add-table'), wrap = $('.stage-wrap');
+  var bar = $('.bar'), seg = bar.querySelector('.seg[aria-label="그리기 도구"]'), add = $('#add-table'), wrap = $('.stage-wrap');
   var relId = $('#rel-id'), detailOn = $('#detail-on'), example = $('#example'), viewPop = $('#view-pop');
   var cloud = { configured: false, user: null };
 
@@ -55,8 +55,22 @@
   var menu = veil.firstChild;
 
   function lineNow() { var b = viewPop.querySelector('[data-line][aria-pressed="true"]'); return b ? b.getAttribute('data-line') : 'ortho'; }
+  function isFlow() { return window.ERD && window.ERD.mode && window.ERD.mode() === 'flow'; }
   function render() {
-    var h = '';
+    var h = '', flow = isFlow(), FA = window.ERD && window.ERD.flowApi;
+    h += '<div class="m-row"><span class="grow" id="m-mode-l">화면</span><span class="m-lines" role="group" aria-labelledby="m-mode-l">' +
+      '<button type="button" data-m="mode" data-v="erd" aria-pressed="' + !flow + '">ERD</button><button type="button" data-m="mode" data-v="flow" aria-pressed="' + flow + '">프로그램 흐름</button></span></div>';
+    if (flow && FA) {
+      var fl = FA.list(), cid = FA.current();
+      h += '<p class="m-h">프로그램 흐름</p>' +
+        (fl.length ? '<label class="m-row" for="m-flow"><span class="grow">흐름</span><select class="m-sel" id="m-flow" data-m="flowpick">' +
+          fl.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === cid ? ' selected' : '') + '>' + esc(x.name || '(이름 없음)') + '</option>'; }).join('') + '</select></label>' : '') +
+        '<button type="button" class="m-row" data-m="flownew"><span class="grow">+ 새 흐름</span></button>' +
+        (fl.length ? '<button type="button" class="m-row" data-m="flowform"><span class="grow">+ FORM 블록</span></button>' +
+          '<button type="button" class="m-row" data-m="flowauto"><span class="grow">자동 정렬<small>블록마다 연결 순서대로 정리</small></span></button>' +
+          '<button type="button" class="m-row" data-m="flowusage"><span class="grow">테이블 사용표</span>' + CHEV + '</button>' : '');
+    }
+    h += '<div class="m-sep"></div>';
     if (cloud.configured) {
       h += '<p class="m-h">계정 · 저장</p>';
       if (!cloud.user) {
@@ -74,15 +88,15 @@
       }
       h += '<div class="m-sep"></div>';
     }
-    h += '<p class="m-h">그리기 옵션</p>' +
+    if (!flow) h += '<p class="m-h">그리기 옵션</p>' +
       '<label class="m-row" for="m-rel-id"><span class="grow">식별 관계<small>새 관계에서 자식 표의 키에 부모 키를 넣어요</small></span>' +
       '<span class="switch"><input type="checkbox" id="m-rel-id" data-m="ident"' + (relId.checked ? ' checked' : '') + '><span class="tr"></span></span></label>' +
       '<label class="m-row" for="m-detail"><span class="grow">상세 설정<small>데이터 타입 · 필수 · SQL 보기</small></span>' +
       '<span class="switch"><input type="checkbox" id="m-detail" data-m="detail"' + (detailOn.checked ? ' checked' : '') + '><span class="tr"></span></span></label>' +
       '<div class="m-row"><span class="grow" id="m-lines-l">선 모양</span><span class="m-lines" role="group" aria-labelledby="m-lines-l">' +
       [['curve', '곡선'], ['ortho', '직각'], ['straight', '직선']].map(function (l) { return '<button type="button" data-m="line" data-v="' + l[0] + '" aria-pressed="' + (lineNow() === l[0]) + '">' + l[1] + '</button>'; }).join('') +
-      '</span></div>' +
-      '<div class="m-sep"></div><p class="m-h">파일</p>' +
+      '</span></div>' + '<div class="m-sep"></div>';
+    h += '<p class="m-h">파일</p>' +
       '<label class="m-row" for="m-example">' + ic('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M9 9.5V20"/>') + '<span class="grow">예제 불러오기</span>' +
       '<select class="m-sel" id="m-example" data-m="example"><option value="">고르기</option>' +
       Array.prototype.slice.call(example.options, 1).map(function (o) { return '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; }).join('') + '</select></label>' +
@@ -106,8 +120,16 @@
     if (e.target === veil) { setMenu(false); return; }
     var b = e.target.closest('button[data-m]'); if (!b) return;
     var m = b.getAttribute('data-m');
+    if (m === 'mode') { if (window.ERD.setMode) window.ERD.setMode(b.getAttribute('data-v')); render(); return; }
     if (m === 'line') { var o = viewPop.querySelector('[data-line="' + b.getAttribute('data-v') + '"]'); if (o) o.click(); render(); return; }
     setMenu(false);
+    var FA = window.ERD && window.ERD.flowApi;
+    if (FA) {
+      if (m === 'flownew') { FA.newFlow(); return; }
+      if (m === 'flowform') { FA.addForm(); return; }
+      if (m === 'flowauto') { FA.autoLayout(); return; }
+      if (m === 'flowusage') { FA.usage(); return; }
+    }
     if (m === 'cloud') $('#cloud-btn').click();
     else if (m === 'save') $('#cloud-save').click();
     else if (m === 'sql') $('#show-sql').click();
@@ -118,6 +140,7 @@
     if (m === 'ident') { relId.checked = e.target.checked; fire(relId); }
     else if (m === 'autosave') { if (window.ERD && window.ERD.setAutosave) window.ERD.setAutosave(e.target.checked); }
     else if (m === 'detail') { detailOn.checked = e.target.checked; fire(detailOn); render(); }
+    else if (m === 'flowpick' && window.ERD.flowApi) { window.ERD.flowApi.pick(e.target.value); setMenu(false); }
     else if (m === 'example' && e.target.value) { example.value = e.target.value; setMenu(false); fire(example); }
   });
   /* keep editor shortcuts (Delete, Ctrl+Z…) from acting while the menu has focus */

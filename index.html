@@ -505,6 +505,21 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
   .pv-bar button.go { flex: 2.2; white-space: nowrap; }
   html.previewing .dock { display: none; }
 }
+/* ERD | 프로그램 흐름 mode switch */
+.mode-seg button { font-weight: 600; }
+html.mode-flow .erd-only { display: none !important; }
+html:not(.mode-flow) .flow-only { display: none !important; }
+html.mode-flow #stage { display: none; }
+.c-hl { fill: var(--accent); opacity: .16; }
+.n-hlframe { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 7 4; }
+.fuse { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.fuse li + li { border-top: 1px solid var(--line); }
+.fuse button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 12px; border: 0; background: var(--panel); color: var(--ink-2); font-size: 13px; text-align: left; }
+.fuse button:hover { background: var(--bg); }
+.fuse .fu-acc { font: 700 11px var(--font-mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 5px; padding: 0 5px; flex: none; }
+.fuse .fu-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fuse .fu-t small { color: var(--muted); margin-left: 6px; }
+.fuse-empty { margin: 0; color: var(--muted); font-size: 12.5px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -513,25 +528,27 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
 
 <header class="bar" role="toolbar" aria-label="도구 모음">
   <div class="brand"><span class="logo" aria-hidden="true"><svg class="t3" viewBox="0 0 64 64"><use href="#t-erd-teal-E"/></svg></span><span class="bt">ERD 설계 도구<small>Entity Relationship Diagram</small></span></div><span class="vr" aria-hidden="true"></span>
-  <button class="btn primary" id="add-table" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>표 추가</button>
-  <div class="seg" role="group" aria-label="그리기 도구">
+  <div class="seg mode-seg" id="mode-seg" role="group" aria-label="화면 전환"><button type="button" data-mode="erd" aria-pressed="true">ERD</button><button type="button" data-mode="flow" aria-pressed="false">프로그램 흐름</button></div>
+  <div class="ftools flow-only" id="ftools" role="group" aria-label="흐름 도구"></div>
+  <button class="btn primary erd-only" id="add-table" type="button"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>표 추가</button>
+  <div class="seg erd-only" role="group" aria-label="그리기 도구">
     <button id="tool-select" type="button" aria-pressed="true"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3l13 6-5.5 2L11 18z"/></svg>선택</button>
     <button type="button" aria-pressed="false" data-kind="11"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h20M8 7v10M12 7v10"/></svg>1:1</button>
     <button type="button" aria-pressed="false" data-kind="1N"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h12M14 12l7-5M14 12h8M14 12l7 5M5 7v10"/></svg>1:N</button>
     <button type="button" aria-pressed="false" data-kind="NM"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10M7 12L2 7M7 12H2M7 12l-5 5M17 12l5-5M17 12h5M17 12l5 5"/></svg>N:M</button>
   </div>
-  <span class="vr" aria-hidden="true"></span><label class="switch" for="rel-id" title="자식 표의 키에 부모 키가 포함돼요"><input type="checkbox" id="rel-id"><span class="tr"></span>식별 관계</label><label class="switch" for="detail-on" title="데이터 타입과 필수(NOT NULL)까지 설정하고 SQL로 볼 수 있어요"><input type="checkbox" id="detail-on"><span class="tr"></span>상세 설정</label>
+  <span class="vr erd-only" aria-hidden="true"></span><label class="switch erd-only" for="rel-id" title="자식 표의 키에 부모 키가 포함돼요"><input type="checkbox" id="rel-id"><span class="tr"></span>식별 관계</label><label class="switch erd-only" for="detail-on" title="데이터 타입과 필수(NOT NULL)까지 설정하고 SQL로 볼 수 있어요"><input type="checkbox" id="detail-on"><span class="tr"></span>상세 설정</label>
   <span class="sp"></span>
-  <button class="btn ghost sq" id="view-btn" type="button" aria-label="보기 설정" title="보기 설정" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+  <button class="btn ghost sq erd-only" id="view-btn" type="button" aria-label="보기 설정" title="보기 설정" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
   <button class="btn ghost sq" id="undo" type="button" disabled aria-label="실행 취소" title="실행 취소 (Ctrl+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
   <button class="btn ghost sq" id="redo" type="button" disabled aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
-  <span class="vr" aria-hidden="true"></span><select class="btn" id="example" aria-label="예제 불러오기">
+  <span class="vr erd-only" aria-hidden="true"></span><select class="btn erd-only" id="example" aria-label="예제 불러오기">
     <option value="">예제</option>
     <option value="school">학생·반·과목·수강</option>
     <option value="shop">쇼핑몰</option>
     <option value="blank">빈 판</option>
   </select>
-  <button class="btn" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
+  <button class="btn erd-only" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
   <button class="btn ghost sq" id="show-json" type="button" aria-label="JSON 내보내기·가져오기" title="JSON 내보내기·가져오기"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   <button class="btn" id="cloud-btn" type="button" title="로그인하고 클라우드에 저장"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">로그인</span></button>
   <button class="btn primary" id="cloud-save" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span id="cloud-save-label">저장</span></button></header>
@@ -603,6 +620,9 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
   try { lineStyle = localStorage.getItem('erd-line') || 'ortho'; } catch (e) { lineStyle = 'ortho'; }
   try { detail = localStorage.getItem('erd-detail') === '1'; } catch (e) { detail = false; }
   var hist = [], redo = [];
+  var mode = 'erd';          /* 'erd' | 'flow' (program flow, drawn by flow.js) */
+  try { if (localStorage.getItem('erd-mode') === 'flow') mode = 'flow'; } catch (e) { /* ignore */ }
+  var hlCols = null;         /* { t: tableId, c: { colId: 1 } } — fields a flow SELECT reads, shown on the ERD */
 
   function uid(p) { return p + (S.seq++); }
   function T(id) { for (var i = 0; i < S.tables.length; i++) if (S.tables[i].id === id) return S.tables[i]; return null; }
@@ -858,11 +878,12 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
     el('line', { x1: 0, x2: w, y1: TITLE, y2: TITLE, 'class': 'n-grid', style: 'stroke: var(--card-line)' }, g);
     el('text', { x: 16, y: 27, 'class': 'n-name' }, g, t.name || '(이름 없음)');
     if (t.ko) el('text', { x: 16 + mw(t.name || '(이름 없음)', 'n-name') + 8, y: 27, 'class': 'n-ko' }, g, t.ko);
-    var rows = shown(t), x1 = cw.k + 4;
+    var rows = shown(t), x1 = cw.k + 4, hl = hlCols && hlCols.t === t.id ? hlCols.c : null;
     if (!rows.length) el('text', { x: 16, y: HEAD + 22, 'class': 'c-type' }, g, '필드가 없어요');
     rows.forEach(function (c, i) {
       var y = HEAD + 2 + i * ROW, cy = y + ROW / 2;
       if (i) el('line', { x1: 12, x2: w - 12, y1: y, y2: y, 'class': 'n-grid' }, g);
+      if (hl && hl[c.id]) el('rect', { x: 4, y: y + 3, width: w - 8, height: ROW - 6, rx: 6, 'class': 'c-hl' }, g);
       if (c.pk && c.fk) { keyIcon(g, 8, cy, 'pk'); keyIcon(g, 26, cy, 'fk'); }
       else if (c.pk) keyIcon(g, 10, cy, 'pk');
       else if (c.fk) keyIcon(g, 10, cy, 'fk');
@@ -872,13 +893,14 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
       if (tool && tool !== 'NM') el('rect', { x: 1, y: y, width: w - 2, height: ROW, 'class': 'n-rowhit' + (pending === t.id && pendingCol === c.id ? ' on' : '') }, g);
     });
     el('rect', { x: .5, y: .5, width: w - 1, height: s.h - 1, rx: R8, 'class': 'n-frame' }, g);
+    if (hl) el('rect', { x: -4, y: -4, width: w + 8, height: s.h + 8, rx: R8 + 4, 'class': 'n-hlframe' }, g);
     return g;
   }
   function drawTables() {
     while (gTabs.firstChild) gTabs.removeChild(gTabs.firstChild);
     S.tables.forEach(function (t) { gTabs.appendChild(nodeEl(t)); });
   }
-  function drawCanvas() { drawRels(); drawTables(); }
+  function drawCanvas() { drawRels(); drawTables(); if (window.ERD && window.ERD.onDraw) window.ERD.onDraw(); }
 
   /* ---------------- hints ---------------- */
   var hintTimer = null;
@@ -966,15 +988,22 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
   var sheetMin = null;  /* mobile bottom sheet: null = automatic (folded when nothing is selected) */
   function mobile() { return window.matchMedia('(max-width: 860px)').matches; }
   function sheetApply() {
-    var min = mobile() && (sheetMin === null ? !sel : sheetMin);
+    var min = mobile() && (sheetMin === null ? !hasSel() : sheetMin);
     side.classList.toggle('min', min);
     var h = side.querySelector('.ph'); if (h) { h.setAttribute('aria-expanded', String(!min)); }
   }
   var lastSelKey = '', sidePinned, sideDismissed;
-  function isSideOpen() { return sidePinned !== false || (!!sel && !sideDismissed); }
+  function hasSel() { return mode === 'flow' ? !!(window.ERD && window.ERD.flowHasSel && window.ERD.flowHasSel()) : !!sel; }
+  function isSideOpen() { return sidePinned !== false || (hasSel() && !sideDismissed); }
   function applySide() { var w = document.querySelector('.work'); if (w) w.classList.toggle('noside', !isSideOpen()); }
   function renderSide() {
     var html = '';
+    if (mode === 'flow' && window.ERD && window.ERD.renderFlowSide) {
+      side.innerHTML = window.ERD.renderFlowSide();
+      sheetApply(); applySide();
+      var fpt = document.getElementById('side-pill-t'); if (fpt) fpt.textContent = '속성';
+      return;
+    }
     if (sel && sel.type === 't' && T(sel.id)) {
       var t = T(sel.id), npk = t.cols.filter(function (c) { return c.pk; }).length, nfk = t.cols.filter(function (c) { return c.fk; }).length;
       html += ph(IC.table, esc(t.name || '(이름 없음)'), '표 · 필드 ' + t.cols.length + '개' + (npk ? ' · PK ' + npk : '') + (nfk ? ' · FK ' + nfk : ''),
@@ -1000,6 +1029,7 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
       });
       if (!t.cols.length) html += '<li class="empty">아직 필드가 없어요</li>';
       html += '</ul><button class="addrow" type="button" id="add-col">' + IC.plus + '필드 추가</button></div>';
+      if (window.ERD && window.ERD.tableUsageHtml) html += window.ERD.tableUsageHtml(t.id);
     } else if (sel && sel.type === 'r' && R(sel.id)) {
       var r2 = R(sel.id), P2 = T(r2.parent), C2 = T(r2.child), card = r2.kind === '11' ? '1 : 1' : '1 : N';
       html += ph(IC.rel, esc(P2.name) + ' <span class="arrow">→</span> ' + esc(C2.name), '관계 · ' + card + ' · ' + (r2.ident ? '식별' : '비식별'),
@@ -1130,7 +1160,7 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
   }
 
   /* ---------------- actions ---------------- */
-  function selectIt(s) { pickFor = null; sheetMin = null; sel = s; drawCanvas(); renderSide(); }
+  function selectIt(s) { pickFor = null; sheetMin = null; if (hlCols && !(s && s.type === 't' && s.id === hlCols.t)) hlCols = null; sel = s; drawCanvas(); renderSide(); }
   function addTableAt(x, y) {
     if (preview) return;
     var n = 1; while (S.tables.some(function (t) { return t.name === 'TABLE_' + n; })) n++;
@@ -1395,6 +1425,8 @@ stage.addEventListener('dblclick', function (e) {
     g.addEventListener('pointermove', move); g.addEventListener('pointerup', up); g.addEventListener('pointercancel', up);
   });
   side.addEventListener('click', function (e) {
+    var fj = e.target.closest && e.target.closest('[data-flowjump]');
+    if (fj) { if (window.ERD.onFlowJump) window.ERD.onFlowJump(fj.getAttribute('data-flowjump')); return; }
     if (mobile() && e.target.closest('.ph') && !e.target.closest('button')) { sheetMin = !side.classList.contains('min'); sheetApply(); if (!sheetMin) side.scrollTop = 0; return; }
     var b = e.target.closest('button'); if (!b) return;
     if (b.id === 'add-col') {
@@ -1525,6 +1557,7 @@ stage.addEventListener('dblclick', function (e) {
     if (preview) { if (e.key === 'Escape' && window.ERD.onPreviewExit) window.ERD.onPreviewExit(); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redoIt(); else undo(); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'y') { e.preventDefault(); redoIt(); return; }
+    if (mode === 'flow') { if (window.ERD.flowKey) window.ERD.flowKey(e, typing); return; }
     if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'c') {
       if (sel && sel.type === 't') { e.preventDefault(); copyTable(); }
       return;
@@ -1606,6 +1639,31 @@ stage.addEventListener('dblclick', function (e) {
   if (saved && Array.isArray(saved.tables) && saved.tables.length) { S = saved; syncAll(); hist = [snapshot()]; drawCanvas(); renderSide(); updateUndo(); fit(); }
   else freshStart(exSchool());
 
+  /* ---------------- ERD | 프로그램 흐름 ---------------- */
+  function setMode(m, quiet) {
+    m = m === 'flow' ? 'flow' : 'erd';
+    var changed = m !== mode; mode = m;
+    try { localStorage.setItem('erd-mode', mode); } catch (e) { /* ignore */ }
+    document.documentElement.classList.toggle('mode-flow', mode === 'flow');
+    Array.prototype.forEach.call(document.querySelectorAll('#mode-seg [data-mode]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-mode') === mode)); });
+    if (mode === 'flow' && tool) setTool(null);
+    toast('');
+    if (!quiet && changed && window.ERD && window.ERD.onModeChange) window.ERD.onModeChange(mode);
+    drawCanvas(); renderSide();
+    try { document.dispatchEvent(new CustomEvent('erd:mode', { detail: { mode: mode } })); } catch (e) { /* ignore */ }
+  }
+  $('#mode-seg').addEventListener('click', function (e) { var b = e.target.closest('[data-mode]'); if (b) setMode(b.getAttribute('data-mode')); });
+  /* show a table (and the fields a flow step reads) on the ERD */
+  function focusTable(tid, colIds) {
+    if (!T(tid)) return;
+    var c = {}; (colIds || []).forEach(function (id) { c[id] = 1; });
+    setMode('erd');
+    sel = { type: 't', id: tid }; hlCols = { t: tid, c: c }; sheetMin = null;
+    var b = box(T(tid)), r = stage.getBoundingClientRect();
+    if (r.width) { V.x = r.width / 2 - (b.x + b.w / 2) * V.k; V.y = r.height / 2 - (b.y + b.h / 2) * V.k; applyView(); }
+    drawCanvas(); renderSide();
+  }
+
   /* ---------------- bridge for cloud.js ---------------- */
   window.ERD = {
     get: function () { return JSON.parse(preview ? preview.s : snapshot()); },  /* always the real board, even while previewing */
@@ -1619,18 +1677,33 @@ stage.addEventListener('dblclick', function (e) {
     dbName: function () { return (S.db || '').trim(); },
     counts: function () { return { tables: S.tables.length, rels: S.rels.length }; },
     hint: hint,
+    /* used by flow.js */
+    state: function () { return S; },
+    uid: uid,
+    commit: function () { commit(); },
+    refresh: function () { drawCanvas(); renderSide(); },
+    renderSide: function () { renderSide(); },
+    mode: function () { return mode; },
+    setMode: setMode,
+    focusTable: focusTable,
+    toast: toast,
+    undo: function () { undo(); },
+    ui: { ph: ph, esc: esc, IC: IC, t3: t3, mobile: mobile, sheet: function (min) { sheetMin = min; sheetApply(); } },
+    onDraw: null, onModeChange: null, renderFlowSide: null, flowHasSel: null, flowKey: null, tableUsageHtml: null, onFlowJump: null,
     flush: function () { flushTyping(); },
     lineStyle: function () { return lineStyle; },
     setLineStyle: function (v) { setLineStyle(v, false); },
     onReset: null,
     onChange: null
   };
+  setMode(mode, true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { mcache = {}; drawCanvas(); fit(); });
 })();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script src="cloud.js"></script>
+<script src="flow.js"></script>
 <script src="mobile.js"></script>
 </body>
 </html>

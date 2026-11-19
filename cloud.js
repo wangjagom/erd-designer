@@ -224,6 +224,15 @@
     if (radd) rl.push(radd + '개 생김'); if (rdel) rl.push(rdel + '개 사라짐'); if (rmod) rl.push(rmod + '개 바뀜');
     if (rl.length) out.push('관계 ' + rl.join(' · '));
     if ((a.db || '') !== (b.db || '') || (a.desc || '') !== (b.desc || '')) out.push('DB 이름·설명 바뀜');
+    /* 프로그램 흐름 (없던 문서는 빈 목록으로 봐요) */
+    var FA = idx(a.flows), FB = idx(b.flows), fadd = [], fdel = [], fmod = [];
+    Object.keys(FB).forEach(function (k) { if (!FA[k]) fadd.push(FB[k].name); else if (JSON.stringify(FA[k]) !== JSON.stringify(FB[k])) fmod.push(FB[k].name); });
+    Object.keys(FA).forEach(function (k) { if (!FB[k]) fdel.push(FA[k].name); });
+    var fl = [];
+    if (fadd.length) fl.push(fadd.length + '개 생김: ' + names(fadd));
+    if (fdel.length) fl.push(fdel.length + '개 사라짐: ' + names(fdel));
+    if (fmod.length) fl.push(fmod.length + '개 바뀜: ' + names(fmod));
+    if (fl.length) out.push('프로그램 흐름 ' + fl.join(' · '));
     return out.length ? out.join('\n') : '표 내용은 같아요 (위치만 다를 수 있어요)';
   }
 
