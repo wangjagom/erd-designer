@@ -11,11 +11,11 @@
 `main` 브랜치(또는 작업 브랜치)에 푸시하면 GitHub Actions(`.github/workflows/pages.yml`)가 GitHub Pages로 자동 배포합니다.
 처음 한 번은 저장소 **Settings → Pages → Build and deployment → Source**를 **GitHub Actions**로 설정해 주세요.
 
-## 프로그램 흐름 (ABAP)
-상단의 **ERD | 프로그램 흐름** 전환으로, SAP ABAP 리포트 프로그램의 실행 흐름을 코드 짜기 전에 설계해요.
+## 프로그램 흐름
+상단의 **ERD | 프로그램 흐름** 전환으로 일반 플로우차트(시작/끝 · 처리 · 판단)를 그리고, 두 가지를 함께 보여 줘요.
 
-- 이벤트 블록은 실행 순서(INITIALIZATION → AT SELECTION-SCREEN OUTPUT → AT SELECTION-SCREEN → START-OF-SELECTION)로 고정돼요.
-- PERFORM/FORM(USING·CHANGING 파라미터), SELECT, IF/CASE, MESSAGE(S/I/W/E/A/X), WRITE, RETURN/EXIT 노드를 화살표로 이어요.
-- SELECT 노드는 이 ERD의 표·필드를 가리켜요. ERD에서 표를 고르면 그 표를 쓰는 흐름이, 흐름에서는 "ERD에서 보기"로 읽는 필드가 강조돼요.
-- 테이블 사용표(흐름별 · 블록별)로 어느 단계가 어떤 표를 읽는지 한눈에 봐요.
-- 흐름은 같은 문서(`flows`)에 저장돼서 브라우저 저장, JSON, 클라우드 저장·버전 기록·공유 링크에 그대로 따라가요. 흐름이 없는 기존 문서는 예전과 똑같이 열려요.
+- **이벤트 레인**: 흐름마다 켜고 끌 수 있는 가로 띠예요. 위 → 아래가 ABAP 리포트의 실행 순서(INITIALIZATION → AT SELECTION-SCREEN → START-OF-SELECTION, 필요하면 AT SELECTION-SCREEN OUTPUT 추가)이고, 단계를 어느 띠에 놓느냐로 그 단계가 일어나는 이벤트가 정해져요.
+- **ERD 연결**: 처리 단계에서 "DB 조회"를 켜고 테이블을 고르면 단계 옆에 DB 칩이 붙어요. 칩을 누르면 ERD에서 그 테이블이 강조되고, ERD에서 테이블을 고르면 그 테이블을 조회하는 단계 목록이 나와요.
+- **사용표**: 레인 › 단계 × 테이블 표에 R(조회)을 보여 줘요.
+- 예제 목록의 **과목·강사 (흐름 예제)**로 바로 볼 수 있어요. (ZTCHR은 가칭 강사 배정 테이블)
+- 흐름은 같은 문서(`flows`)에 저장돼서 브라우저 저장, JSON, 클라우드 저장·버전 기록·공유 링크에 그대로 따라가요. 흐름이 없는 기존 문서는 예전과 똑같이 열리고, 1차 버전 형식의 흐름은 열 때 자동으로 바뀌어요.

@@ -66,8 +66,9 @@
         (fl.length ? '<label class="m-row" for="m-flow"><span class="grow">흐름</span><select class="m-sel" id="m-flow" data-m="flowpick">' +
           fl.map(function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === cid ? ' selected' : '') + '>' + esc(x.name || '(이름 없음)') + '</option>'; }).join('') + '</select></label>' : '') +
         '<button type="button" class="m-row" data-m="flownew"><span class="grow">+ 새 흐름</span></button>' +
-        (fl.length ? '<button type="button" class="m-row" data-m="flowform"><span class="grow">+ FORM 블록</span></button>' +
-          '<button type="button" class="m-row" data-m="flowauto"><span class="grow">자동 정렬<small>블록마다 연결 순서대로 정리</small></span></button>' +
+        (fl.length ? '<label class="m-row" for="m-lanes"><span class="grow">이벤트 레인<small>위 → 아래 = 실행 순서</small></span>' +
+          '<span class="switch"><input type="checkbox" id="m-lanes" data-m="flowlanes"' + (FA.lanesOn() ? ' checked' : '') + '><span class="tr"></span></span></label>' +
+          '<button type="button" class="m-row" data-m="flowtidy"><span class="grow">정렬<small>위에서 아래로 줄 맞추기</small></span></button>' +
           '<button type="button" class="m-row" data-m="flowusage"><span class="grow">테이블 사용표</span>' + CHEV + '</button>' : '');
     }
     h += '<div class="m-sep"></div>';
@@ -126,8 +127,7 @@
     var FA = window.ERD && window.ERD.flowApi;
     if (FA) {
       if (m === 'flownew') { FA.newFlow(); return; }
-      if (m === 'flowform') { FA.addForm(); return; }
-      if (m === 'flowauto') { FA.autoLayout(); return; }
+      if (m === 'flowtidy') { FA.tidy(); return; }
       if (m === 'flowusage') { FA.usage(); return; }
     }
     if (m === 'cloud') $('#cloud-btn').click();
@@ -140,6 +140,7 @@
     if (m === 'ident') { relId.checked = e.target.checked; fire(relId); }
     else if (m === 'autosave') { if (window.ERD && window.ERD.setAutosave) window.ERD.setAutosave(e.target.checked); }
     else if (m === 'detail') { detailOn.checked = e.target.checked; fire(detailOn); render(); }
+    else if (m === 'flowlanes' && window.ERD.flowApi) { window.ERD.flowApi.setLanes(e.target.checked); setMenu(false); }
     else if (m === 'flowpick' && window.ERD.flowApi) { window.ERD.flowApi.pick(e.target.value); setMenu(false); }
     else if (m === 'example' && e.target.value) { example.value = e.target.value; setMenu(false); fire(example); }
   });

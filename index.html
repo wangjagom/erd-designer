@@ -546,6 +546,7 @@ html.mode-flow #stage { display: none; }
     <option value="">예제</option>
     <option value="school">학생·반·과목·수강</option>
     <option value="shop">쇼핑몰</option>
+    <option value="course">과목·강사 (흐름 예제)</option>
     <option value="blank">빈 판</option>
   </select>
   <button class="btn erd-only" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
@@ -1140,6 +1141,45 @@ html.mode-flow #stage { display: none; }
     return S;
   }
 
+  /* 과목·강사: ABAP 리포트 흐름 예제 (ZTCHR은 가칭 강사 배정 테이블) */
+  function exCourse() {
+    S = { tables: [], rels: [], seq: 1 };
+    var sb = newTable('ZTC0503', '과목', 0, 60, [['MANDT', 'CLNT(3)', 1, '클라이언트'], ['OBJID', 'NUMC(8)', 1, '과목 코드'], ['OBJTX', 'CHAR(40)', 0, '과목 이름'], ['EGRADE', 'CHAR(1)', 0, '난이도']], 2);
+    var tc = newTable('ZTCHR', '강사 배정 (가칭)', 420, 60, [['BEGDA', 'DATS', 1, '시작일'], ['ENDDA', 'DATS', 0, '종료일'], ['TCHID', 'NUMC(8)', 0, '강사 번호'], ['TCHNM', 'CHAR(40)', 0, '강사 이름']], 1);
+    addRel(sb, tc, '1N', true, false);
+    syncAll();
+    /* FK(MANDT, OBJID)를 맨 앞으로: SAP 테이블은 첫 필드가 MANDT */
+    tc.cols.sort(function (a, b) { return (b.fk ? 1 : 0) - (a.fk ? 1 : 0); });
+    function col(t, n) { return t.cols.filter(function (c) { return c.name === n; })[0].id; }
+    var L1 = uid('l'), L2 = uid('l'), L3 = uid('l');
+    function nd(id, kind, text, lane, x, y, reads) { return { id: id, kind: kind, text: text, lane: lane, x: x, y: y, reads: reads || [] }; }
+    var n = {}; ['start', 'init', 'qsub', 'dsub', 'err', 'end1', 'psub', 'qtch', 'dtch', 'ptch', 'none', 'end2'].forEach(function (k) { n[k] = uid('n'); });
+    S.flows = [{
+      id: uid('f'), name: 'ZRC05W0261', desc: '과목 코드와 기준일을 받아 과목 정보와 담당 강사를 보여 주는 리포트',
+      lanesOn: true,
+      lanes: [{ id: L1, name: 'INITIALIZATION' }, { id: L2, name: 'AT SELECTION-SCREEN' }, { id: L3, name: 'START-OF-SELECTION' }],
+      nodes: [
+        nd(n.start, 'terminal', '시작', L1, 30, 0),
+        nd(n.init, 'process', '기본값 설정\n(과목 코드, 기준일)', L1, 0, 80),
+        nd(n.qsub, 'process', '과목 조회', L2, 0, 0, [{ table: sb.id, cols: [col(sb, 'OBJID'), col(sb, 'OBJTX'), col(sb, 'EGRADE')], op: 'R' }]),
+        nd(n.dsub, 'decision', '과목이 있나?', L2, 6, 100),
+        nd(n.err, 'process', '오류 메시지 (E)\n입력 화면에 머묾', L2, 280, 122),
+        nd(n.end1, 'terminal', '끝', L2, 520, 128),
+        nd(n.psub, 'process', '과목 정보 출력', L3, 0, 0),
+        nd(n.qtch, 'process', '담당 강사 조회', L3, 0, 100, [{ table: tc.id, cols: [col(tc, 'BEGDA'), col(tc, 'ENDDA'), col(tc, 'TCHID'), col(tc, 'TCHNM')], op: 'R' }]),
+        nd(n.dtch, 'decision', '강사가 있나?', L3, 6, 200),
+        nd(n.ptch, 'process', '강사 정보 출력', L3, 0, 350),
+        nd(n.none, 'process', "'담당 강사 없음' 출력", L3, 280, 350),
+        nd(n.end2, 'terminal', '끝', L3, 30, 450)
+      ],
+      edges: [
+        [n.start, n.init], [n.init, n.qsub], [n.qsub, n.dsub], [n.dsub, n.err, '아니오'], [n.err, n.end1], [n.dsub, n.psub, '예'],
+        [n.psub, n.qtch], [n.qtch, n.dtch], [n.dtch, n.ptch, '예'], [n.dtch, n.none, '아니오'], [n.ptch, n.end2], [n.none, n.end2]
+      ].map(function (e) { return { id: uid('e'), from: e[0], to: e[1], label: e[2] || '' }; })
+    }];
+    return S;
+  }
+
   /* ---------------- view ---------------- */
   function fit() {
     var r = stage.getBoundingClientRect();
@@ -1519,6 +1559,7 @@ stage.addEventListener('dblclick', function (e) {
   $('#example').addEventListener('change', function () {
     var v = this.value; this.value = '';
     if (v && window.ERD && window.ERD.onReset) window.ERD.onReset();
+    if (v === 'course') { freshStart(exCourse()); if (mode !== 'flow') hint('프로그램 흐름 화면에서 예제 흐름을 볼 수 있어요', false, 3200); return; }
     if (v === 'school') freshStart(exSchool()); else if (v === 'shop') freshStart(exShop()); else if (v === 'blank') freshStart({ tables: [], rels: [], seq: 1 });
   });
   $('#zoom-in').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.2); });
