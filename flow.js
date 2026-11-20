@@ -20,6 +20,8 @@
   var ORDER = ['terminal', 'process', 'decision'];
   var PRESET = ['INITIALIZATION', 'AT SELECTION-SCREEN OUTPUT', 'AT SELECTION-SCREEN', 'START-OF-SELECTION'];
   var DEFAULT_LANES = ['INITIALIZATION', 'AT SELECTION-SCREEN', 'START-OF-SELECTION'];
+  var LANE_SUB = { 'INITIALIZATION': '시작할 때 한 번', 'AT SELECTION-SCREEN OUTPUT': '선택 화면 표시 전', 'AT SELECTION-SCREEN': '입력값 검사', 'START-OF-SELECTION': '본 처리' };
+  var LANE_C = ['s1', 's2', 's0', 's4', 's3', 's5'];
 
   /* ---------------- 문서 접근 + 예전 형식 변환 ---------------- */
   function S() { return E.state(); }
@@ -178,6 +180,8 @@
     '.fband.sel .fband-head { fill: var(--accent-soft); }',
     '.fb-no { fill: var(--accent); } .fb-no-t { font: 700 11px var(--font-ui); fill: #fff; }',
     '.fb-name { font: 700 12.5px var(--font-mono); fill: var(--ink); }',
+    '.fb-sub { font: 500 12px var(--font-ui); fill: var(--muted); }',
+    '.fnode.process .fn-shape { stroke: var(--card-line); }',
     '.fband.empty .fb-name { opacity: .6; }',
     '.fb-empty { font: 400 12px var(--font-ui); fill: var(--muted); }',
     '.fnode { cursor: grab; }',
@@ -370,11 +374,13 @@
       el('line', { x1: 0, x2: lay.W, y1: 0, y2: 0, 'class': 'fband-line' }, g);
       if (i === lay.bands.length - 1) el('line', { x1: 0, x2: lay.W, y1: B.h, y2: B.h, 'class': 'fband-line' }, g);
       el('line', { x1: HW, x2: HW, y1: 0, y2: B.h, 'class': 'fband-line' }, g);
-      var cy = B.empty ? B.h / 2 : 26;
-      el('circle', { cx: 22, cy: cy, r: 10, 'class': 'fb-no' }, g);
-      el('text', { x: 22, y: cy + 4, 'text-anchor': 'middle', 'class': 'fb-no-t' }, g, String(B.no));
-      var nl = B.empty ? wrap(B.name, HW - 52, 12.5, 1) : wrap(B.name, HW - 52, 12.5, 3);
-      nl.forEach(function (t, k) { el('text', { x: 40, y: cy + 4 + k * 17, 'class': 'fb-name' }, g, t); });
+      var lc = 'var(--' + LANE_C[i % LANE_C.length] + ')', cy = B.empty ? B.h / 2 : 30;
+      el('rect', { x: 0, y: 0, width: 4, height: B.h, style: 'fill:' + lc }, g);
+      el('circle', { cx: 28, cy: cy, r: 11, 'class': 'fb-no', style: 'fill:' + lc }, g);
+      el('text', { x: 28, y: cy + 4, 'text-anchor': 'middle', 'class': 'fb-no-t' }, g, String(B.no));
+      var nl = B.empty ? wrap(B.name, HW - 58, 12.5, 1) : wrap(B.name, HW - 58, 12.5, 3);
+      nl.forEach(function (t, k) { el('text', { x: 47, y: cy + 4.5 + k * 17, 'class': 'fb-name' }, g, t); });
+      if (!B.empty && LANE_SUB[B.name]) el('text', { x: 47, y: cy + 4.5 + nl.length * 17 + 2, 'class': 'fb-sub' }, g, LANE_SUB[B.name]);
       if (B.empty) el('text', { x: HW + PAD, y: B.h / 2 + 4, 'class': 'fb-empty' }, g, '비어 있음');
     });
 

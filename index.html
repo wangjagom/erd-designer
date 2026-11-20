@@ -376,6 +376,12 @@ svg.t3 { display: block; flex: none; }
 .pop { position: fixed; z-index: 20; width: 264px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 12px 32px rgb(16 24 40 / .14), 0 2px 6px rgb(16 24 40 / .06); }
 .pop[hidden] { display: none; }
 .pop-t { margin: 0 0 10px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.pop-t2 { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pop .prow { display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 12px; width: 100%; height: auto; padding: 6px 0; color: var(--ink); }
+.pop .prow .pt { display: flex; flex-direction: column; font-size: 13.5px; font-weight: 600; line-height: 1.35; }
+.pop .prow .pt small { font-size: 11.5px; font-weight: 400; color: var(--muted); }
+#view-btn { position: relative; }
+#view-btn.dot::after { content: ''; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--panel); }
 .lines { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .lines button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink-2); font-size: 12.5px; font-weight: 500; }
 .lines button:hover { border-color: var(--line-2); }
@@ -533,6 +539,19 @@ html.mode-flow #stage { display: none; }
 .fuse .fu-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fuse .fu-t small { color: var(--muted); margin-left: 6px; }
 .fuse-empty { margin: 0; color: var(--muted); font-size: 12.5px; }
+/* ===== polish (2026-11) ===== */
+@media (max-width: 1640px) { .brand .bt { display: none; } }
+.bar { border-bottom: 0; box-shadow: 0 1px 0 var(--line), 0 6px 18px rgb(16 24 40 / .04); position: relative; z-index: 6; gap: 8px 10px; }
+#example { width: 118px; }
+.bar .switch { height: 36px; padding: 0 10px; border-radius: 9px; transition: background .12s; }
+.bar .switch:hover { background: var(--bg); }
+.mode-seg button { padding: 0 14px; }
+.node .n-head { fill: var(--h); }
+.n-stripe { fill: var(--s); }
+.node.sel .n-frame { stroke: var(--s); }
+.node .n-name { font-size: 14.5px; }
+.c-name.pk { fill: var(--ink); }
+.zoom { box-shadow: 0 1px 2px rgb(16 24 40 / .06), 0 8px 24px rgb(16 24 40 / .08); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -550,9 +569,8 @@ html.mode-flow #stage { display: none; }
     <button type="button" aria-pressed="false" data-kind="1N"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12h12M14 12l7-5M14 12h8M14 12l7 5M5 7v10"/></svg>1:N</button>
     <button type="button" aria-pressed="false" data-kind="NM"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 12h10M7 12L2 7M7 12H2M7 12l-5 5M17 12l5-5M17 12h5M17 12l5 5"/></svg>N:M</button>
   </div>
-  <span class="vr erd-only" aria-hidden="true"></span><label class="switch erd-only" for="rel-id" title="자식 표의 키에 부모 키가 포함돼요"><input type="checkbox" id="rel-id"><span class="tr"></span>식별 관계</label><label class="switch erd-only" for="detail-on" title="데이터 타입과 필수(NOT NULL)까지 설정하고 SQL로 볼 수 있어요"><input type="checkbox" id="detail-on"><span class="tr"></span>상세 설정</label>
   <span class="sp"></span>
-  <button class="btn ghost sq erd-only" id="view-btn" type="button" aria-label="보기 설정" title="보기 설정" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
+  <button class="btn ghost sq erd-only" id="view-btn" type="button" aria-label="그리기·보기 설정" title="그리기·보기 설정 (식별 관계, 상세 설정, 선 모양)" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></button>
   <button class="btn ghost sq" id="undo" type="button" disabled aria-label="실행 취소" title="실행 취소 (Ctrl+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg></button>
   <button class="btn ghost sq" id="redo" type="button" disabled aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/></svg></button>
   <span class="vr erd-only" aria-hidden="true"></span><select class="btn erd-only" id="example" aria-label="예제 불러오기">
@@ -568,8 +586,11 @@ html.mode-flow #stage { display: none; }
   <button class="btn" id="cloud-btn" type="button" title="로그인하고 클라우드에 저장"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">로그인</span></button>
   <button class="btn primary" id="cloud-save" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span id="cloud-save-label">저장</span></button></header>
 
-<div class="pop" id="view-pop" hidden role="dialog" aria-label="보기 설정">
-  <p class="pop-t">선 모양</p>
+<div class="pop" id="view-pop" hidden role="dialog" aria-label="그리기·보기 설정">
+  <p class="pop-t">그리기</p>
+  <label class="switch prow" for="rel-id"><input type="checkbox" id="rel-id"><span class="tr"></span><span class="pt">식별 관계<small>새 관계에서 자식 표의 키에 부모 키를 넣어요</small></span></label>
+  <label class="switch prow" for="detail-on"><input type="checkbox" id="detail-on"><span class="tr"></span><span class="pt">상세 설정<small>타입·필수(NOT NULL)까지 보고 정해요</small></span></label>
+  <p class="pop-t pop-t2">선 모양</p>
   <div class="lines" role="group" aria-label="선 모양">
     <button type="button" data-line="curve" aria-pressed="false"><svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 8C34 8 30 24 60 24"/></svg>곡선</button>
     <button type="button" data-line="ortho" aria-pressed="false"><svg viewBox="0 0 64 32" aria-hidden="true"><path d="M4 8H26a6 6 0 0 1 6 6v4a6 6 0 0 0 6 6H60"/></svg>직각</button>
@@ -678,8 +699,8 @@ html.mode-flow #stage { display: none; }
     INT1: { fix: 3, ko: '정수(1바이트)' }, INT2: { fix: 5, ko: '정수(2바이트)' }, INT4: { fix: 10, ko: '정수(4바이트)' }, FLTP: { fix: 16, ko: '부동소수점' }, LANG: { fix: 1, ko: '언어 키' }, STRING: { fix: 0, ko: '가변 길이 문자열' }
   };
   var DDIC_ORDER = ['CLNT', 'CHAR', 'NUMC', 'DATS', 'TIMS', 'DEC', 'CURR', 'CUKY', 'QUAN', 'UNIT', 'INT1', 'INT2', 'INT4', 'FLTP', 'LANG', 'STRING'];
-  var DELIVERY = [['A', 'A · 응용 테이블 (마스터·트랜잭션 데이터)'], ['C', 'C · 고객 테이블 (고객이 관리하는 데이터)'], ['L', 'L · 임시 데이터 테이블'], ['G', 'G · 고객 테이블 (SAP가 추가 가능)'], ['E', 'E · 시스템 테이블 (고객 범위 있음)'], ['S', 'S · 시스템 테이블'], ['W', 'W · 시스템 테이블 (전송 시 내용 제외)']];
-  var DATACLASS = [['APPL0', 'APPL0 · 마스터 데이터'], ['APPL1', 'APPL1 · 트랜잭션 데이터'], ['APPL2', 'APPL2 · 구성 데이터']];
+  var DELIVERY = [['A', 'A 응용 테이블'], ['C', 'C 고객 테이블'], ['L', 'L 임시 데이터'], ['G', 'G 고객 (SAP 추가)'], ['E', 'E 시스템 (고객 범위)'], ['S', 'S 시스템'], ['W', 'W 시스템 (내용 제외)']];
+  var DATACLASS = [['APPL0', 'APPL0 마스터'], ['APPL1', 'APPL1 트랜잭션'], ['APPL2', 'APPL2 구성']];
   function parseType(str) {
     var m = /^\s*([A-Za-z0-9_]+)\s*(?:\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\))?/.exec(str || '');
     if (!m) return { t: '', len: '', dec: '' };
@@ -982,10 +1003,12 @@ html.mode-flow #stage { display: none; }
   }
   function nodeEl(t) {
     var s = size(t), cw = s.cw, w = s.w, on = sel && sel.type === 't' && sel.id === t.id;
-    var g = el('g', { 'class': 'node' + (on ? ' sel' : '') + (pending === t.id ? ' pend' : ''), transform: 'translate(' + t.x + ',' + t.y + ')', 'data-t': t.id });
+    var g = el('g', { 'class': 'node c' + colorOf(t) + (on ? ' sel' : '') + (pending === t.id ? ' pend' : ''), transform: 'translate(' + t.x + ',' + t.y + ')', 'data-t': t.id });
     var R8 = 8, hp = 'M0 ' + TITLE + 'V' + R8 + 'a' + R8 + ' ' + R8 + ' 0 0 1 ' + R8 + '-' + R8 + 'H' + (w - R8) + 'a' + R8 + ' ' + R8 + ' 0 0 1 ' + R8 + ' ' + R8 + 'V' + TITLE + 'Z';
     el('rect', { width: w, height: s.h, rx: R8, 'class': 'n-shadow' }, g);
     el('path', { d: hp, 'class': 'n-head' }, g);
+    /* 표 색을 맨 위 얇은 띠로 */
+    el('path', { d: 'M0 8a8 8 0 0 1 8-8H' + (w - 8) + 'a8 8 0 0 1 8 8Q' + w + ' 3.5 ' + (w - 5) + ' 3.5H5Q0 3.5 0 8Z', 'class': 'n-stripe' }, g);
     el('line', { x1: 0, x2: w, y1: TITLE, y2: TITLE, 'class': 'n-grid', style: 'stroke: var(--card-line)' }, g);
     el('text', { x: 16, y: 27, 'class': 'n-name' }, g, t.name || '(이름 없음)');
     if (t.ko) el('text', { x: 16 + mw(t.name || '(이름 없음)', 'n-name') + 8, y: 27, 'class': 'n-ko' }, g, t.ko);
@@ -1734,7 +1757,7 @@ stage.addEventListener('dblclick', function (e) {
   });
   $('#tool-select').addEventListener('click', function () { setTool(null); });
   ['11', '1N', 'NM'].forEach(function (k) { document.querySelector('[data-kind="' + k + '"]').addEventListener('click', function () { setTool(k); }); });
-  $('#rel-id').addEventListener('change', function () { identOn = this.checked; hint(identOn ? '식별 관계로 그려요. 자식 표의 키에 부모 키가 들어가요' : '비식별 관계로 그려요. 자식 표에 일반 FK 필드가 생겨요', false, 2600); });
+  $('#rel-id').addEventListener('change', function () { identOn = this.checked; $('#view-btn').classList.toggle('dot', identOn); hint(identOn ? '식별 관계로 그려요. 자식 표의 키에 부모 키가 들어가요' : '비식별 관계로 그려요. 자식 표에 일반 FK 필드가 생겨요', false, 2600); });
   function applyDetail() {
     $('#detail-on').checked = detail;
     $('#show-sql').hidden = !(detail || isSap());
