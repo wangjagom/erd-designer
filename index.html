@@ -564,7 +564,7 @@ html.mode-flow #stage { display: none; }
     <option value="blank">빈 판</option>
   </select>
   <button class="btn erd-only" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg><span id="show-sql-t">SQL 보기</span></button>
-  <button class="btn ghost sq" id="show-json" type="button" aria-label="JSON 내보내기·가져오기" title="JSON 내보내기·가져오기"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
+  <button class="btn ghost sq" id="show-json" type="button" aria-label="파일로 저장·불러오기 (JSON)" title="파일로 저장·불러오기 (JSON)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   <button class="btn" id="cloud-btn" type="button" title="로그인하고 클라우드에 저장"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">로그인</span></button>
   <button class="btn primary" id="cloud-save" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span id="cloud-save-label">저장</span></button></header>
 
@@ -603,6 +603,8 @@ html.mode-flow #stage { display: none; }
     <div class="foot">
       <span class="note" id="m-note"></span>
       <button class="btn" id="m-apply" type="button" hidden>이 내용으로 불러오기</button>
+      <button class="btn" id="m-open" type="button" hidden>파일 열기</button><input type="file" id="m-file" accept=".json,application/json" hidden>
+      <button class="btn" id="m-save" type="button">파일로 저장</button>
       <button class="btn primary" id="m-copy" type="button">복사</button>
       <button class="btn" id="m-close" type="button">닫기</button>
     </div>
@@ -1867,11 +1869,31 @@ stage.addEventListener('dblclick', function (e) {
     if (!order.length) out.push('-- 표가 아직 없어요. 표를 추가해 보세요.');
     return out.join('\n');
   }
+  var modalKind = 'json';
+  /* 지금 창의 내용을 파일로 내려받아요: JSON은 다시 불러올 수 있는 백업, 정리표·SQL은 참고용 */
+  function fileBase() {
+    var n = (S.db || (S.tables[0] && S.tables[0].name) || 'erd').replace(/[^0-9A-Za-z_-]+/g, '_').replace(/^_+|_+$/g, '');
+    var d = new Date(), z = function (x) { return (x < 10 ? '0' : '') + x; };
+    return (n || 'erd') + '_' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate());
+  }
+  function saveFile() {
+    var text = $('#m-text').value, ext = modalKind === 'json' ? '.json' : modalKind === 'se11' ? '_SE11.txt' : '.sql';
+    var type = modalKind === 'json' ? 'application/json' : 'text/plain';
+    try {
+      var url = URL.createObjectURL(new Blob([modalKind === 'json' ? '' : '\ufeff', text], { type: type + ';charset=utf-8' }));
+      var a = document.createElement('a'); a.href = url; a.download = fileBase() + ext;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+      var b = $('#m-save'); b.textContent = '저장했어요'; setTimeout(function () { b.textContent = '파일로 저장'; }, 1800);
+    } catch (e) { hint('파일로 저장하지 못했어요. 복사해서 붙여넣어 주세요', true); }
+  }
   function openModal(m) {
+    modalKind = m === 'sql' ? (isSap() ? 'se11' : 'sql') : 'json';
+    $('#m-open').hidden = modalKind !== 'json';
     var ta = $('#m-text');
     if (m === 'sql' && isSap()) { $('#m-title').textContent = 'SE11 정리표'; ta.value = genSE11(); ta.readOnly = true; $('#m-note').textContent = 'SE11에서 테이블을 만들 때 옮겨 적기 좋게 정리했어요. 외래 키는 체크 테이블로 적었어요.'; $('#m-apply').hidden = true; }
     else if (m === 'sql') { $('#m-title').textContent = 'SQL 보기'; ta.value = genSQL(); ta.readOnly = true; $('#m-note').textContent = '표 사이의 순서와 FK까지 포함한 CREATE TABLE 문이에요.'; $('#m-apply').hidden = true; }
-    else { $('#m-title').textContent = 'JSON 내보내기·가져오기'; ta.value = JSON.stringify(S, null, 1); ta.readOnly = false; $('#m-note').textContent = '내용을 복사해 두었다가 아래 칸에 붙여넣고 불러올 수 있어요.'; $('#m-apply').hidden = false; }
+    else { $('#m-title').textContent = '파일로 저장·불러오기 (JSON)'; ta.value = JSON.stringify(S, null, 1); ta.readOnly = false; $('#m-note').textContent = '내용을 복사해 두었다가 아래 칸에 붙여넣고 불러올 수 있어요.'; $('#m-apply').hidden = false; }
     $('#veil').hidden = false; ta.focus();
   }
   function closeModal() { $('#veil').hidden = true; }
@@ -1879,6 +1901,15 @@ stage.addEventListener('dblclick', function (e) {
   $('#show-json').addEventListener('click', function () { openModal('json'); });
   $('#m-close').addEventListener('click', closeModal);
   $('#veil').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+  $('#m-save').addEventListener('click', saveFile);
+  $('#m-open').addEventListener('click', function () { $('#m-file').value = ''; $('#m-file').click(); });
+  $('#m-file').addEventListener('change', function () {
+    var f = this.files && this.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { $('#m-text').value = String(rd.result || '').replace(/^\ufeff/, ''); $('#m-note').textContent = '“' + f.name + '” 내용을 가져왔어요. 확인한 뒤 “이 내용으로 불러오기”를 누르세요.'; };
+    rd.onerror = function () { $('#m-note').textContent = '파일을 읽지 못했어요.'; };
+    rd.readAsText(f, 'utf-8');
+  });
   $('#m-copy').addEventListener('click', function () {
     var ta = $('#m-text'), btn = this;
     function done(ok) { btn.textContent = ok ? '복사됨' : '선택됨. Ctrl+C를 누르세요'; setTimeout(function () { btn.textContent = '복사'; }, 1800); }

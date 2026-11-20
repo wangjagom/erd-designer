@@ -102,7 +102,7 @@
       '<select class="m-sel" id="m-example" data-m="example"><option value="">고르기</option>' +
       Array.prototype.slice.call(example.options, 1).map(function (o) { return '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; }).join('') + '</select></label>' +
       (!$('#show-sql').hidden ? '<button type="button" class="m-row" data-m="sql">' + ic('<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/>') + '<span class="grow">' + esc($('#show-sql-t').textContent) + '</span>' + CHEV + '</button>' : '') +
-      '<button type="button" class="m-row" data-m="json">' + ic('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>') + '<span class="grow">JSON 내보내기 · 가져오기</span>' + CHEV + '</button>';
+      '<button type="button" class="m-row" data-m="json">' + ic('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>') + '<span class="grow">파일로 저장 · 불러오기 (JSON)</span>' + CHEV + '</button>';
     menu.innerHTML = h;
   }
   function setMenu(on) {
