@@ -505,6 +505,19 @@ html.previewing #stage { outline: 3px solid var(--accent); outline-offset: -3px;
   .pv-bar button.go { flex: 2.2; white-space: nowrap; }
   html.previewing .dock { display: none; }
 }
+/* SAP (SE11) 필드 정의 */
+.col .sap { grid-column: 2 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 64px 56px; gap: 4px; margin-top: 6px; padding-left: 2px; }
+.col .sap .in { height: 28px; padding: 0 6px; border: 1px solid var(--line); background: var(--panel); font: 500 12px var(--font-mono); color: var(--ink-2); }
+.col .sap .dt { grid-column: 1 / -1; }
+.col .sap .in:disabled { opacity: .6; }
+.col .sap .chk, .col .sap .ref { grid-column: 1 / -1; font-size: 12px; color: var(--ink-2); }
+.col .sap .ref { display: flex; align-items: center; gap: 6px; }
+.col .sap .ref select { flex: 1; min-width: 0; height: 28px; font: 500 12px var(--font-mono); }
+.col .sap .ref.miss select { border-color: var(--danger); }
+.sap-legend { margin: -4px 0 0; color: var(--muted); font-size: 11.5px; }
+.sapw { margin: 0; padding: 0 0 0 16px; color: var(--danger); font-size: 12.5px; line-height: 1.6; }
+.sapok { margin: 0; color: var(--accent); font-size: 12.5px; }
+.c-dtel { font: 400 11px var(--font-mono); fill: var(--muted); }
 /* ERD | 프로그램 흐름 mode switch */
 .mode-seg button { font-weight: 600; }
 html.mode-flow .erd-only { display: none !important; }
@@ -546,10 +559,11 @@ html.mode-flow #stage { display: none; }
     <option value="">예제</option>
     <option value="school">학생·반·과목·수강</option>
     <option value="shop">쇼핑몰</option>
+    <option value="flight">SAP 항공 (SCARR·SPFLI·SFLIGHT·SBOOK)</option>
     <option value="course">과목·강사 (흐름 예제)</option>
     <option value="blank">빈 판</option>
   </select>
-  <button class="btn erd-only" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg>SQL 보기</button>
+  <button class="btn erd-only" id="show-sql" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></svg><span id="show-sql-t">SQL 보기</span></button>
   <button class="btn ghost sq" id="show-json" type="button" aria-label="JSON 내보내기·가져오기" title="JSON 내보내기·가져오기"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
   <button class="btn" id="cloud-btn" type="button" title="로그인하고 클라우드에 저장"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .6-7.96A6 6 0 0 0 6.1 9.1 4.5 4.5 0 0 0 7 18z"/></svg><span id="cloud-label">로그인</span></button>
   <button class="btn primary" id="cloud-save" type="button" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg><span id="cloud-save-label">저장</span></button></header>
@@ -640,12 +654,104 @@ html.mode-flow #stage { display: none; }
 
   function newTable(name, ko, x, y, cols, color) {
     var t = { id: uid('t'), name: name, ko: ko || '', x: x, y: y, color: color != null ? color : S.tables.length % 6, cols: [] };
-    (cols || []).forEach(function (c) { t.cols.push({ id: uid('c'), name: c[0], type: c[1], pk: !!c[2], nn: !!c[2], fk: null, auto: false, desc: c[3] || '' }); });
+    (cols || []).forEach(function (c) {
+      var col = { id: uid('c'), name: c[0], type: c[1], pk: !!c[2], nn: !!c[2], fk: null, auto: false, desc: c[3] || '' };
+      if (c[4]) col.dtel = c[4];
+      t.cols.push(col);
+    });
     S.tables.push(t); return t;
   }
   function addRel(parent, child, kind, ident, optional) {
     var r = { id: uid('r'), parent: parent.id, child: child.id, kind: kind, ident: !!ident && parent !== child, optional: !!optional };
     S.rels.push(r); return r;
+  }
+
+  /* ---------------- SAP (SE11) 형식 ----------------
+     S.format === 'sap'이면 표를 SE11처럼 정의해요. 타입은 지금처럼 문자열(CHAR(3), CURR(15,2), DATS)로 두고,
+     필드에 dtel(데이터 요소)·ref(통화/수량 참조 필드), 표에 sap { delivery, dataClass }만 더해요. */
+  function isSap() { return S.format === 'sap'; }
+  var DDIC = {
+    CLNT: { fix: 3, ko: '클라이언트' }, CHAR: { ko: '문자' }, NUMC: { ko: '숫자로 된 문자' }, DATS: { fix: 8, ko: '날짜 YYYYMMDD' }, TIMS: { fix: 6, ko: '시간 HHMMSS' },
+    DEC: { dec: 1, ko: '팩 숫자' }, CURR: { dec: 1, ref: 'CUKY', ko: '금액' }, CUKY: { fix: 5, ko: '통화 키' }, QUAN: { dec: 1, ref: 'UNIT', ko: '수량' }, UNIT: { fix: 3, ko: '단위' },
+    INT1: { fix: 3, ko: '정수(1바이트)' }, INT2: { fix: 5, ko: '정수(2바이트)' }, INT4: { fix: 10, ko: '정수(4바이트)' }, FLTP: { fix: 16, ko: '부동소수점' }, LANG: { fix: 1, ko: '언어 키' }, STRING: { fix: 0, ko: '가변 길이 문자열' }
+  };
+  var DDIC_ORDER = ['CLNT', 'CHAR', 'NUMC', 'DATS', 'TIMS', 'DEC', 'CURR', 'CUKY', 'QUAN', 'UNIT', 'INT1', 'INT2', 'INT4', 'FLTP', 'LANG', 'STRING'];
+  var DELIVERY = [['A', 'A · 응용 테이블 (마스터·트랜잭션 데이터)'], ['C', 'C · 고객 테이블 (고객이 관리하는 데이터)'], ['L', 'L · 임시 데이터 테이블'], ['G', 'G · 고객 테이블 (SAP가 추가 가능)'], ['E', 'E · 시스템 테이블 (고객 범위 있음)'], ['S', 'S · 시스템 테이블'], ['W', 'W · 시스템 테이블 (전송 시 내용 제외)']];
+  var DATACLASS = [['APPL0', 'APPL0 · 마스터 데이터'], ['APPL1', 'APPL1 · 트랜잭션 데이터'], ['APPL2', 'APPL2 · 구성 데이터']];
+  function parseType(str) {
+    var m = /^\s*([A-Za-z0-9_]+)\s*(?:\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\))?/.exec(str || '');
+    if (!m) return { t: '', len: '', dec: '' };
+    var t = m[1].toUpperCase(), d = DDIC[t];
+    return { t: t, len: d && d.fix != null ? d.fix : (m[2] ? +m[2] : ''), dec: m[3] ? +m[3] : (d && d.dec ? 0 : '') };
+  }
+  function fmtType(t, len, dec) {
+    var d = DDIC[t]; if (!t) return '';
+    if (d && d.fix != null) return t;
+    len = Math.max(1, parseInt(len, 10) || 1);
+    return d && d.dec ? t + '(' + len + ',' + Math.max(0, parseInt(dec, 10) || 0) + ')' : t + '(' + len + ')';
+  }
+  function sapType(c) { var p = parseType(c.type); return p.t ? p.t + (p.len ? ' ' + p.len + (p.dec ? ',' + p.dec : '') : '') : ''; }
+  function refCol(c) { if (!c.ref) return null; var rt = T(c.ref.t); return rt && C(rt, c.ref.c) ? { t: rt, c: C(rt, c.ref.c) } : null; }
+  /* SE11에서 막히거나 헷갈리는 것들: 막지 않고 알려만 줘요 */
+  function sapChecks(t) {
+    var w = [], cols = t.cols, nonKey = false, gap = false;
+    if (!/^[ZY]/i.test(t.name || '')) w.push('고객이 만드는 테이블 이름은 Z 또는 Y로 시작해요. (SAP 표준 테이블을 옮겨 그린 거라면 괜찮아요)');
+    if ((t.name || '').length > 16) w.push('테이블 이름은 16자까지예요.');
+    if (!cols.some(function (c) { return c.pk; })) w.push('키 필드가 없어요. SE11 테이블에는 키 필드가 하나 이상 있어야 해요.');
+    cols.forEach(function (c) { if (!c.pk) nonKey = true; else if (nonKey) gap = true; });
+    if (gap) w.push('키 필드는 맨 앞에 연달아 있어야 해요. 필드를 끌어서 순서를 바꿔 주세요.');
+    if (cols[0] && cols[0].pk && parseType(cols[0].type).t !== 'CLNT') w.push('첫 키 필드가 MANDT(CLNT)가 아니면 클라이언트 독립 테이블이 돼요. 의도한 게 아니면 MANDT를 맨 앞에 넣어 주세요.');
+    cols.forEach(function (c, i) {
+      var p = parseType(c.type), nm = c.name || '(이름 없음)', d = DDIC[p.t];
+      if ((c.name || '').length > 16) w.push(nm + ': 필드 이름은 16자까지예요.');
+      if (!p.t) w.push(nm + ': 데이터 타입이 비어 있어요.');
+      else if (!d) w.push(nm + ': ' + p.t + '은(는) SE11 데이터 타입이 아니에요.');
+      if (d && d.ref && !refCol(c)) w.push(nm + ': ' + p.t + ' 필드는 참조 필드(' + d.ref + ')를 정해야 해요.');
+      if (p.t === 'CLNT' && i !== 0) w.push(nm + ': CLNT 필드는 맨 앞에 있어야 해요.');
+    });
+    return w;
+  }
+  function sapCard(r) { return (r.optional ? 'C' : '1') + ' : ' + (r.kind === '11' ? 'C' : 'CN'); }
+  function sapRow(t, c) {
+    var p = parseType(c.type), d = DDIC[p.t], fixed = d && d.fix != null, hasDec = d && d.dec, dis = c.fk ? ' disabled title="외래 키 필드는 체크 테이블 필드를 그대로 따라요"' : '', id = 'c-' + c.id;
+    var opts = (!p.t ? '<option value="" selected>타입</option>' : d ? '' : '<option value="' + esc(p.t) + '" selected>' + esc(p.t) + ' (SE11 타입 아님)</option>') +
+      DDIC_ORDER.map(function (k) { return '<option value="' + k + '"' + (p.t === k ? ' selected' : '') + ' title="' + esc(DDIC[k].ko) + '">' + k + '</option>'; }).join('');
+    var h = '<div class="sap">' +
+      '<input class="in dt" id="' + id + '-e" data-f="cdtel" value="' + esc(c.dtel || '') + '" placeholder="데이터 요소 (예: S_CARR_ID)" aria-label="데이터 요소" autocomplete="off" spellcheck="false"' + dis + '>' +
+      '<select class="in st" id="' + id + '-t" data-f="cdt" aria-label="데이터 타입"' + dis + '>' + opts + '</select>' +
+      '<input class="in sl" id="' + id + '-l" data-f="clen" type="number" min="1" value="' + esc(p.len) + '" placeholder="길이" aria-label="길이"' + (fixed || c.fk ? ' disabled' : '') + '>' +
+      '<input class="in sd" id="' + id + '-p" data-f="cdec" type="number" min="0" value="' + esc(hasDec ? p.dec : '') + '" placeholder="소수" aria-label="소수 자릿수"' + (hasDec && !c.fk ? '' : ' disabled') + '>' +
+      '<label class="chk" for="' + id + '-nn"><input type="checkbox" id="' + id + '-nn" data-f="cnn"' + (c.nn || c.pk ? ' checked' : '') + (c.pk || c.fk ? ' disabled' : '') + '>초기값 (NOT NULL)</label>';
+    if (d && d.ref) {
+      var rc = refCol(c), ro = '<option value="">' + d.ref + ' 필드 고르기</option>';
+      S.tables.forEach(function (x) { x.cols.forEach(function (k) { if (parseType(k.type).t === d.ref) ro += '<option value="' + x.id + '|' + k.id + '"' + (rc && rc.c === k ? ' selected' : '') + '>' + esc(x.name + '-' + k.name) + '</option>'; }); });
+      h += '<label class="ref' + (rc ? '' : ' miss') + '" for="' + id + '-r">참조 필드<select class="in" id="' + id + '-r" data-f="cref">' + ro + '</select></label>';
+    }
+    return h + '</div>';
+  }
+  function genSE11() {
+    function pad(s, n) { s = String(s == null ? '' : s); while (s.length < n) s += ' '; return s; }
+    var out = ['* SE11 정리표: ERD 설계 도구에서 만든 표를 SE11에 옮겨 적기 좋게 정리했어요.', '* 데이터 요소는 이름만 적어 둔 거예요. 실제 시스템에 있는지 확인해 주세요.', ''];
+    if (S.db) out.push('* ' + S.db, '');
+    S.tables.forEach(function (t) {
+      var sp = t.sap || {};
+      out.push(t.name + (t.ko ? '   ' + t.ko : ''));
+      out.push('  납품 클래스 ' + (sp.delivery || 'A') + ' · 데이터 클래스 ' + (sp.dataClass || '-'));
+      out.push('  ' + pad('필드', 14) + pad('키', 3) + pad('초기값', 7) + pad('데이터 요소', 16) + pad('타입', 7) + pad('길이', 6) + pad('소수', 5) + '짧은 설명');
+      t.cols.forEach(function (c) {
+        var p = parseType(c.type);
+        out.push('  ' + pad(c.name, 14) + pad(c.pk ? 'X' : '', 3) + pad(c.nn || c.pk ? 'X' : '', 7) + pad(c.dtel || '', 16) + pad(p.t, 7) + pad(p.len, 6) + pad(p.dec === '' ? '' : p.dec, 5) + (c.desc || ''));
+      });
+      S.rels.filter(function (r) { return r.child === t.id; }).forEach(function (r) {
+        var P = T(r.parent), fks = t.cols.filter(function (c) { return c.fk && c.fk.rel === r.id; }).map(function (c) { return c.name; });
+        if (P && fks.length) out.push('  외래 키: ' + fks.join(', ') + ' → 체크 테이블 ' + P.name + ' (카디널리티 ' + sapCard(r) + ', ' + (r.ident ? '키 필드' : '키가 아닌 필드') + ')');
+      });
+      t.cols.forEach(function (c) { var rc = refCol(c); if (rc) out.push('  통화/수량 참조: ' + c.name + ' → ' + rc.t.name + '-' + rc.c.name); });
+      sapChecks(t).forEach(function (m) { out.push('  ! ' + m); });
+      out.push('  ABAP: DATA gs_' + (t.name || 'tab').toLowerCase() + ' TYPE ' + (t.name || 'tab').toLowerCase() + '.', '');
+    });
+    if (!S.tables.length) out.push('* 표가 아직 없어요.');
+    return out.join('\n');
   }
 
   /* Foreign key columns follow the parent's primary key automatically. */
@@ -673,6 +779,7 @@ html.mode-flow #stage { display: none; }
             fc.name = uniqueName(Ch, (self ? 'PARENT_' : '') + p.name, fc);
           }
           fc.type = p.type;
+          if (p.dtel) fc.dtel = p.dtel;
           fc.pk = r.ident;
           fc.nn = r.ident || !r.optional;
         });
@@ -706,12 +813,13 @@ html.mode-flow #stage { display: none; }
   function colW(t) {
     var nw = 110, dw = 0;
     t.cols.forEach(function (c) { nw = Math.max(nw, mw(c.name, 'c-name' + (c.pk ? ' pk' : '')) + 28); if (c.desc) dw = Math.max(dw, mw(c.desc, 'c-desc') + 20); });
-    var tw = 0;
-    if (detail) { tw = 64; t.cols.forEach(function (c) { tw = Math.max(tw, mw(c.type || '', 'c-type') + 22); }); }
-    return { k: both(t) ? 46 : KEYW, n: Math.ceil(nw), t: Math.ceil(tw), d: Math.ceil(dw) };
+    var tw = 0, ew = 0;
+    if (detail) { tw = 64; t.cols.forEach(function (c) { tw = Math.max(tw, mw(isSap() ? sapType(c) : (c.type || ''), 'c-type') + 22); }); }
+    if (isSap()) t.cols.forEach(function (c) { if (c.dtel) ew = Math.max(ew, mw(c.dtel, 'c-dtel') + 18); });
+    return { k: both(t) ? 46 : KEYW, n: Math.ceil(nw), e: Math.ceil(ew), t: Math.ceil(tw), d: Math.ceil(dw) };
   }
   function size(t) {
-    var cw = colW(t), w = cw.k + cw.n + cw.t + cw.d + 12;
+    var cw = colW(t), w = cw.k + cw.n + cw.e + cw.t + cw.d + 12;
     w = Math.max(w, 220, mw(t.name || '(이름 없음)', 'n-name') + (t.ko ? mw(t.ko, 'n-ko') + 10 : 0) + 36);
     return { w: Math.min(Math.ceil(w / 2) * 2, 560), h: HEAD + Math.max(1, t.cols.length) * ROW + 4, cw: cw };
   }
@@ -889,7 +997,8 @@ html.mode-flow #stage { display: none; }
       else if (c.pk) keyIcon(g, 10, cy, 'pk');
       else if (c.fk) keyIcon(g, 10, cy, 'fk');
       el('text', { x: x1, y: cy + 4.5, 'class': 'c-name' + (c.pk ? ' pk' : '') }, g, c.name);
-      if (detail) el('text', { x: x1 + cw.n - 4, y: cy + 4.5, 'class': 'c-type' }, g, c.type);
+      if (cw.e && c.dtel) el('text', { x: x1 + cw.n - 4, y: cy + 4.5, 'class': 'c-dtel' }, g, c.dtel);
+      if (detail) el('text', { x: x1 + cw.n + cw.e - 4, y: cy + 4.5, 'class': 'c-type' }, g, isSap() ? sapType(c) : c.type);
       if (c.desc) el('text', { x: w - 14, y: cy + 4.5, 'text-anchor': 'end', 'class': 'c-desc' }, g, c.desc);
       if (tool && tool !== 'NM') el('rect', { x: 1, y: y, width: w - 2, height: ROW, 'class': 'n-rowhit' + (pending === t.id && pendingCol === c.id ? ' on' : '') }, g);
     });
@@ -901,7 +1010,7 @@ html.mode-flow #stage { display: none; }
     while (gTabs.firstChild) gTabs.removeChild(gTabs.firstChild);
     S.tables.forEach(function (t) { gTabs.appendChild(nodeEl(t)); });
   }
-  function drawCanvas() { drawRels(); drawTables(); if (window.ERD && window.ERD.onDraw) window.ERD.onDraw(); }
+  function drawCanvas() { drawRels(); drawTables(); applyDetail(); if (window.ERD && window.ERD.onDraw) window.ERD.onDraw(); }
 
   /* ---------------- hints ---------------- */
   var hintTimer = null;
@@ -1010,26 +1119,33 @@ html.mode-flow #stage { display: none; }
       html += ph(IC.table, esc(t.name || '(이름 없음)'), '표 · 필드 ' + t.cols.length + '개' + (npk ? ' · PK ' + npk : '') + (nfk ? ' · FK ' + nfk : ''),
         '<div class="ph-act"><button type="button" class="ib" id="dup-sel" aria-label="표 복제" title="표 복제 (Ctrl+C, Ctrl+V)">' + IC.copy + '</button><button type="button" class="ib danger" id="del-sel" aria-label="표 삭제" title="표 삭제 (Delete)">' + IC.trash + '</button></div>') +
         '<div class="sec"><div class="sec-h"><h2>기본 정보</h2></div>' +
-        '<div class="grid2"><div class="field"><label for="tp-name">표 이름</label><input class="in mono" id="tp-name" data-f="tname" value="' + esc(t.name) + '" autocomplete="off" spellcheck="false"></div>' +
-        '<div class="field"><label for="tp-ko">한글 이름</label><input class="in" id="tp-ko" data-f="tko" value="' + esc(t.ko) + '" placeholder="예: 학생" autocomplete="off"></div></div></div>' +
-        '<div class="sec"><div class="sec-h"><h2>필드</h2><span class="count">' + t.cols.length + '</span></div><ul class="cols">';
+        '<div class="grid2"><div class="field"><label for="tp-name">' + (isSap() ? '테이블 이름' : '표 이름') + '</label><input class="in mono" id="tp-name" data-f="tname" value="' + esc(t.name) + '" autocomplete="off" spellcheck="false"></div>' +
+        '<div class="field"><label for="tp-ko">' + (isSap() ? '짧은 설명' : '한글 이름') + '</label><input class="in" id="tp-ko" data-f="tko" value="' + esc(t.ko) + '" placeholder="예: ' + (isSap() ? '항공사' : '학생') + '" autocomplete="off"></div></div>' +
+        (isSap() ? '<div class="grid2"><div class="field"><label for="tp-del">납품 클래스</label><select class="in" id="tp-del" data-f="tdel">' +
+          DELIVERY.map(function (d) { return '<option value="' + d[0] + '"' + (((t.sap || {}).delivery || 'A') === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join('') + '</select></div>' +
+          '<div class="field"><label for="tp-dcl">데이터 클래스</label><select class="in" id="tp-dcl" data-f="tdcl"><option value="">고르기</option>' +
+          DATACLASS.map(function (d) { return '<option value="' + d[0] + '"' + ((t.sap || {}).dataClass === d[0] ? ' selected' : '') + '>' + esc(d[1]) + '</option>'; }).join('') + '</select></div></div>' : '') + '</div>' +
+        '<div class="sec"><div class="sec-h"><h2>필드</h2><span class="count">' + t.cols.length + '</span></div>' +
+        (isSap() ? '<p class="sap-legend">필드 · 짧은 설명 / 데이터 요소 · 타입 · 길이 · 소수 · 초기값</p>' : '') + '<ul class="cols">';
       t.cols.forEach(function (c) {
         var fkText = '';
-        if (c.fk) { var r = R(c.fk.rel), P = r && T(r.parent), pc = P && C(P, c.fk.ref); fkText = pc ? P.name + '.' + pc.name : '?'; }
+        if (c.fk) { var r = R(c.fk.rel), P = r && T(r.parent), pc = P && C(P, c.fk.ref); fkText = pc ? (isSap() ? '체크 테이블 ' + P.name + ' · ' + pc.name : P.name + '.' + pc.name) : '?'; }
         html += '<li class="col' + (c.pk ? ' is-pk' : '') + (c.fk ? ' is-fk' : '') + '" data-c="' + c.id + '">' +
           '<button type="button" class="grip" data-grip aria-label="' + esc(c.name) + ' 순서 바꾸기 (끌거나 위·아래 화살표)" title="끌어서 순서 바꾸기"><svg viewBox="0 0 10 16" aria-hidden="true"><circle cx="3" cy="3" r="1.3"/><circle cx="7" cy="3" r="1.3"/><circle cx="3" cy="8" r="1.3"/><circle cx="7" cy="8" r="1.3"/><circle cx="3" cy="13" r="1.3"/><circle cx="7" cy="13" r="1.3"/></svg></button>' +
           '<div class="keys">' +
           '<button type="button" class="kb pk" data-act="pk" aria-pressed="' + c.pk + '" aria-label="기본키(PK)"' + (c.fk ? ' disabled title="FK 필드의 PK 여부는 관계(식별/비식별)가 정해요"' : ' title="기본키(PK)로 지정"') + '>' + IC.key + '</button>' +
           '<button type="button" class="kb fk" data-act="fk" aria-pressed="' + (!!c.fk || pickFor === c.id) + '" aria-label="외래키(FK)" title="' + (c.fk ? 'FK 해제' : '다른 표의 키를 가리키는 FK로 지정') + '">' + IC.link + '</button></div>' +
           '<div class="cf"><input class="in cn" id="c-' + c.id + '-n" data-f="cname" value="' + esc(c.name) + '" aria-label="필드 이름" autocomplete="off" spellcheck="false">' +
-          '<input class="in desc" id="c-' + c.id + '-d" data-f="cdesc" value="' + esc(c.desc || '') + '" placeholder="설명 추가" aria-label="필드 설명" autocomplete="off">' +
-          (detail ? '<div class="det"><input class="in ty" id="c-' + c.id + '-t" data-f="ctype" list="types" value="' + esc(c.type || '') + '" aria-label="데이터 타입" autocomplete="off" spellcheck="false"' + (c.fk ? ' disabled title="FK는 가리키는 키의 타입을 그대로 따라요"' : '') + '>' +
+          '<input class="in desc" id="c-' + c.id + '-d" data-f="cdesc" value="' + esc(c.desc || '') + '" placeholder="' + (isSap() ? '짧은 설명' : '설명 추가') + '" aria-label="필드 설명" autocomplete="off">' +
+          (isSap() ? '' : detail ? '<div class="det"><input class="in ty" id="c-' + c.id + '-t" data-f="ctype" list="types" value="' + esc(c.type || '') + '" aria-label="데이터 타입" autocomplete="off" spellcheck="false"' + (c.fk ? ' disabled title="FK는 가리키는 키의 타입을 그대로 따라요"' : '') + '>' +
             '<label class="chk" for="c-' + c.id + '-nn"><input type="checkbox" id="c-' + c.id + '-nn" data-f="cnn"' + (c.nn || c.pk ? ' checked' : '') + (c.pk || c.fk ? ' disabled' : '') + '>필수</label></div>' : '') + '</div>' +
           '<button type="button" class="ib del" data-act="del" aria-label="필드 삭제" title="필드 삭제">' + IC.x + '</button>' +
+          (isSap() ? sapRow(t, c) : '') +
           (c.fk ? '<div class="sub"><span class="fkinfo">' + IC.link + '<span>' + esc(fkText) + '</span></span></div>' : pickFor === c.id ? '<div class="sub"><div class="fkpick"><span class="txt">가리킬 키</span>' + fkOptions(t, c) + '</div></div>' : '') + '</li>';
       });
       if (!t.cols.length) html += '<li class="empty">아직 필드가 없어요</li>';
       html += '</ul><button class="addrow" type="button" id="add-col">' + IC.plus + '필드 추가</button></div>';
+      if (isSap()) { var sw = sapChecks(t); html += '<div class="sec"><div class="sec-h"><h2>SE11 점검</h2>' + (sw.length ? '<span class="count">' + sw.length + '</span>' : '') + '</div>' + (sw.length ? '<ul class="sapw">' + sw.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>' : '<p class="sapok">SE11 기본 규칙에 맞아요.</p>') + '</div>'; }
       if (window.ERD && window.ERD.tableUsageHtml) html += window.ERD.tableUsageHtml(t.id);
     } else if (sel && sel.type === 'r' && R(sel.id)) {
       var r2 = R(sel.id), P2 = T(r2.parent), C2 = T(r2.child), card = r2.kind === '11' ? '1 : 1' : '1 : N';
@@ -1044,10 +1160,14 @@ html.mode-flow #stage { display: none; }
         seg('선 종류', 'l-id', 'ident', [['1', r2.ident, '식별 · 실선', P2 === C2], ['0', !r2.ident, '비식별 · 점선']]) +
         seg('부모가 꼭 있어야 하나요', 'l-opt', 'optional', [['0', !r2.optional, '필수'], ['1', r2.optional, '선택', r2.ident]]) +
         '</div><div class="sec"><div class="field"><label for="rel-desc">관계 설명</label><textarea class="in" id="rel-desc" data-f="rdesc" rows="3" placeholder="예: 학생은 한 반에 속하고, 반은 여러 학생을 가져요">' + esc(r2.desc || '') + '</textarea></div></div>' +
-        '<div class="note">식별 관계는 자식 표의 키에 부모 키가 들어가요(연결 표가 대표적이에요). 비식별 관계는 일반 필드(FK)로만 이어요.</div>';
+        (isSap() ? '<div class="note">SE11 외래 키: 체크 테이블 <b>' + esc(P2.name) + '</b> · 카디널리티 <b>' + sapCard(r2) + '</b> · 외래 키 필드 유형 <b>' + (r2.ident ? '키 필드' : '키가 아닌 필드') + '</b></div>' :
+        '<div class="note">식별 관계는 자식 표의 키에 부모 키가 들어가요(연결 표가 대표적이에요). 비식별 관계는 일반 필드(FK)로만 이어요.</div>');
     } else {
       html += ph(t3('db', 'teal'), esc(S.db || '이름 없는 ERD'), '표 ' + S.tables.length + '개 · 관계 ' + S.rels.length + '개') +
         '<div class="sec"><div class="sec-h"><h2>ERD 정보</h2></div>' +
+        '<div class="field"><span class="lab" id="l-fmt">테이블 형식</span><div class="seg wrap" role="group" aria-labelledby="l-fmt">' +
+        '<button type="button" data-fmt="sap" aria-pressed="' + isSap() + '">SAP (SE11)</button><button type="button" data-fmt="general" aria-pressed="' + !isSap() + '">일반 DB</button></div></div>' +
+        '<p class="sap-legend">' + (isSap() ? 'SE11처럼 데이터 요소 · DDIC 타입 · 길이 · 초기값으로 정의하고, 관계는 체크 테이블로 봐요.' : '일반 데이터베이스 방식(VARCHAR, INT 등)으로 정의해요.') + '</p>' +
         '<div class="field"><label for="erd-db">DB 이름</label><input class="in" id="erd-db" data-f="erddb" value="' + esc(S.db || '') + '" placeholder="예: 학사관리 DB" autocomplete="off"></div>' +
         '<div class="field"><label for="erd-desc">설명</label><textarea class="in" id="erd-desc" data-f="erddesc" rows="4" placeholder="이 DB가 무엇을 관리하는지, 주요 업무 흐름, 설계할 때 정한 규칙 등을 적어 두세요">' + esc(S.desc || '') + '</textarea></div></div>' +
         '<div class="sec"><div class="sec-h"><h2>시작하기</h2></div><ol class="steps">' +
@@ -1143,8 +1263,8 @@ html.mode-flow #stage { display: none; }
 
   /* 과목·강사: ABAP 리포트 흐름 예제 (ZTCHR은 가칭 강사 배정 테이블) */
   function exCourse() {
-    S = { tables: [], rels: [], seq: 1 };
-    var sb = newTable('ZTC0503', '과목', 0, 60, [['MANDT', 'CLNT(3)', 1, '클라이언트'], ['OBJID', 'NUMC(8)', 1, '과목 코드'], ['OBJTX', 'CHAR(40)', 0, '과목 이름'], ['EGRADE', 'CHAR(1)', 0, '난이도']], 2);
+    S = { tables: [], rels: [], seq: 1, format: 'sap' };
+    var sb = newTable('ZTC0503', '과목', 0, 60, [['MANDT', 'CLNT', 1, '클라이언트', 'MANDT'], ['OBJID', 'NUMC(8)', 1, '과목 코드'], ['OBJTX', 'CHAR(40)', 0, '과목 이름'], ['EGRADE', 'CHAR(1)', 0, '난이도']], 2);
     var tc = newTable('ZTCHR', '강사 배정 (가칭)', 420, 60, [['BEGDA', 'DATS', 1, '시작일'], ['ENDDA', 'DATS', 0, '종료일'], ['TCHID', 'NUMC(8)', 0, '강사 번호'], ['TCHNM', 'CHAR(40)', 0, '강사 이름']], 1);
     addRel(sb, tc, '1N', true, false);
     syncAll();
@@ -1180,6 +1300,72 @@ html.mode-flow #stage { display: none; }
     return S;
   }
 
+  /* SAP 표준 항공 예제(BC_TRAVEL 모델의 주요 필드만). 체크 테이블 관계와 통화·수량 참조까지 SE11처럼 넣었어요. */
+  function exFlight() {
+    S = { tables: [], rels: [], seq: 1, format: 'sap', db: 'SAP 항공 예제 (BC_TRAVEL)', desc: 'SAP가 교육용으로 제공하는 항공 예약 데이터 모델의 주요 필드만 옮겼어요.' };
+    var carr = newTable('SCARR', '항공사', 0, 40, [
+      ['MANDT', 'CLNT', 1, '클라이언트', 'MANDT'], ['CARRID', 'CHAR(3)', 1, '항공사 코드', 'S_CARR_ID'], ['CARRNAME', 'CHAR(20)', 0, '항공사 이름', 'S_CARRNAME'],
+      ['CURRCODE', 'CUKY', 0, '항공사 현지 통화', 'S_CURRCODE'], ['URL', 'CHAR(255)', 0, '항공사 홈페이지', 'S_CARRURL']], 1);
+    var spfli = newTable('SPFLI', '항공 노선', 470, 0, [
+      ['CONNID', 'NUMC(4)', 1, '노선 번호', 'S_CONN_ID'], ['COUNTRYFR', 'CHAR(3)', 0, '출발 국가', 'LAND1'], ['CITYFROM', 'CHAR(20)', 0, '출발 도시', 'S_FROM_CIT'],
+      ['AIRPFROM', 'CHAR(3)', 0, '출발 공항', 'S_FROMAIRP'], ['COUNTRYTO', 'CHAR(3)', 0, '도착 국가', 'LAND1'], ['CITYTO', 'CHAR(20)', 0, '도착 도시', 'S_TO_CITY'],
+      ['AIRPTO', 'CHAR(3)', 0, '도착 공항', 'S_TOAIRP'], ['FLTIME', 'INT4', 0, '비행 시간(분)', 'S_FLTIME'], ['DEPTIME', 'TIMS', 0, '출발 시각', 'S_DEP_TIME'],
+      ['ARRTIME', 'TIMS', 0, '도착 시각', 'S_ARR_TIME'], ['DISTANCE', 'QUAN(9,4)', 0, '거리', 'S_DISTANCE'], ['DISTID', 'UNIT', 0, '거리 단위', 'S_DISTID'],
+      ['FLTYPE', 'CHAR(1)', 0, '전세기 여부', 'S_FLTYPE'], ['PERIOD', 'INT1', 0, '도착 날짜 차이', 'S_PERIOD']], 0);
+    var sfl = newTable('SFLIGHT', '항공편', 1000, 40, [
+      ['FLDATE', 'DATS', 1, '비행 날짜', 'S_DATE'], ['PRICE', 'CURR(15,2)', 0, '항공료', 'S_PRICE'], ['CURRENCY', 'CUKY', 0, '통화', 'S_CURRCODE'],
+      ['PLANETYPE', 'CHAR(10)', 0, '기종', 'S_PLANETYE'], ['SEATSMAX', 'INT4', 0, '최대 좌석', 'S_SEATSMAX'], ['SEATSOCC', 'INT4', 0, '예약 좌석', 'S_SEATSOCC'],
+      ['PAYMENTSUM', 'CURR(17,2)', 0, '예약 금액 합계', 'S_SUM']], 2);
+    var sbook = newTable('SBOOK', '항공 예약', 1000, 470, [
+      ['BOOKID', 'NUMC(8)', 1, '예약 번호', 'S_BOOK_ID'], ['CUSTOMID', 'NUMC(8)', 0, '고객 번호', 'S_CUSTOMER'], ['CUSTTYPE', 'CHAR(1)', 0, '고객 유형', 'S_CUSTTYPE'],
+      ['CLASS', 'CHAR(1)', 0, '좌석 등급', 'S_CLASS'], ['FORCURAM', 'CURR(15,2)', 0, '결제 금액', 'S_F_CUR_PR'], ['FORCURKEY', 'CUKY', 0, '결제 통화', 'S_CURR'],
+      ['ORDER_DATE', 'DATS', 0, '예약일', 'S_BDATE'], ['CANCELLED', 'CHAR(1)', 0, '취소 여부', 'S_CANCEL'], ['PASSNAME', 'CHAR(25)', 0, '승객 이름', 'S_PASSNAME']], 4);
+    [spfli, sfl, sbook].forEach(function (t) { t.sap = { delivery: 'A', dataClass: 'APPL1' }; });
+    carr.sap = { delivery: 'A', dataClass: 'APPL0' }; spfli.sap.dataClass = 'APPL0';
+    addRel(carr, spfli, '1N', true, false);
+    addRel(spfli, sfl, '1N', true, false);
+    addRel(sfl, sbook, '1N', true, false);
+    syncAll();
+    /* 체크 테이블에서 온 키(MANDT·CARRID…)를 맨 앞으로: SE11에서는 키 필드가 앞에 연달아 와요 */
+    [spfli, sfl, sbook].forEach(function (t) {   /* 부모를 먼저 정리하니까, 외래 키는 부모 키 순서를 그대로 따라요 */
+      function rank(c) { return c.fk && c.pk ? 0 : c.pk ? 1 : 2; }
+      function at(c) { if (!c.fk) return 0; var P = T(R(c.fk.rel).parent); return P.cols.map(function (k) { return k.id; }).indexOf(c.fk.ref); }
+      t.cols = t.cols.map(function (c, i) { return { c: c, i: i }; }).sort(function (a, b) { return rank(a.c) - rank(b.c) || at(a.c) - at(b.c) || a.i - b.i; }).map(function (x) { return x.c; });
+    });
+    function col(t, n) { return t.cols.filter(function (c) { return c.name === n; })[0]; }
+    function ref(t, f, rt, rf) { col(t, f).ref = { t: rt.id, c: col(rt, rf).id }; }
+    ref(spfli, 'DISTANCE', spfli, 'DISTID'); ref(sfl, 'PRICE', sfl, 'CURRENCY'); ref(sfl, 'PAYMENTSUM', sfl, 'CURRENCY'); ref(sbook, 'FORCURAM', sbook, 'FORCURKEY');
+
+    var L1 = uid('l'), L2 = uid('l'), L3 = uid('l'), n = {};
+    ['start', 'init', 'qcarr', 'dcarr', 'err', 'end1', 'qconn', 'qfl', 'dfl', 'list', 'none', 'end2'].forEach(function (k) { n[k] = uid('n'); });
+    function nd(id, kind, text, lane, x, y, reads) { return { id: id, kind: kind, text: text, lane: lane, x: x, y: y, reads: reads || [] }; }
+    function rd(t, names) { return { table: t.id, cols: names.map(function (k) { return col(t, k).id; }), op: 'R' }; }
+    S.flows = [{
+      id: uid('f'), name: 'ZFLIGHT_LIST', desc: '항공사 코드를 받아 노선과 항공편 목록을 보여 주는 리포트',
+      lanesOn: true,
+      lanes: [{ id: L1, name: 'INITIALIZATION' }, { id: L2, name: 'AT SELECTION-SCREEN' }, { id: L3, name: 'START-OF-SELECTION' }],
+      nodes: [
+        nd(n.start, 'terminal', '시작', L1, 30, 0),
+        nd(n.init, 'process', '기본값 설정\n(항공사 코드 AA)', L1, 0, 80),
+        nd(n.qcarr, 'process', '항공사 조회', L2, 0, 0, [rd(carr, ['CARRID', 'CARRNAME', 'CURRCODE'])]),
+        nd(n.dcarr, 'decision', '항공사가 있나?', L2, 6, 100),
+        nd(n.err, 'process', '오류 메시지 (E)\n입력 화면에 머묾', L2, 280, 122),
+        nd(n.end1, 'terminal', '끝', L2, 520, 128),
+        nd(n.qconn, 'process', '노선 조회', L3, 0, 0, [rd(spfli, ['CARRID', 'CONNID', 'CITYFROM', 'CITYTO'])]),
+        nd(n.qfl, 'process', '항공편 조회', L3, 0, 100, [rd(sfl, ['FLDATE', 'PRICE', 'CURRENCY', 'SEATSMAX', 'SEATSOCC'])]),
+        nd(n.dfl, 'decision', '항공편이 있나?', L3, 6, 200),
+        nd(n.list, 'process', '항공편 목록 출력', L3, 0, 350),
+        nd(n.none, 'process', "'항공편 없음' 출력", L3, 280, 350),
+        nd(n.end2, 'terminal', '끝', L3, 30, 450)
+      ],
+      edges: [
+        [n.start, n.init], [n.init, n.qcarr], [n.qcarr, n.dcarr], [n.dcarr, n.err, '아니오'], [n.err, n.end1], [n.dcarr, n.qconn, '예'],
+        [n.qconn, n.qfl], [n.qfl, n.dfl], [n.dfl, n.list, '예'], [n.dfl, n.none, '아니오'], [n.list, n.end2], [n.none, n.end2]
+      ].map(function (e) { return { id: uid('e'), from: e[0], to: e[1], label: e[2] || '' }; })
+    }];
+    return S;
+  }
+
   /* ---------------- view ---------------- */
   function fit() {
     var r = stage.getBoundingClientRect();
@@ -1203,8 +1389,11 @@ html.mode-flow #stage { display: none; }
   function selectIt(s) { pickFor = null; sheetMin = null; if (hlCols && !(s && s.type === 't' && s.id === hlCols.t)) hlCols = null; sel = s; drawCanvas(); renderSide(); }
   function addTableAt(x, y) {
     if (preview) return;
-    var n = 1; while (S.tables.some(function (t) { return t.name === 'TABLE_' + n; })) n++;
-    var t = newTable('TABLE_' + n, '', Math.round(x / 10) * 10, Math.round(y / 10) * 10, [['ID', 'INT', 1], ['NAME', 'VARCHAR(50)']]);
+    var sap = isSap(), base = sap ? 'ZTABLE_' : 'TABLE_', n = 1;
+    while (S.tables.some(function (t) { return t.name === base + n; })) n++;
+    var t = newTable(base + n, '', Math.round(x / 10) * 10, Math.round(y / 10) * 10, sap ?
+      [['MANDT', 'CLNT', 1, '클라이언트', 'MANDT'], ['KEY_FIELD', 'CHAR(10)', 1, '키 필드'], ['TEXT', 'CHAR(40)', 0, '내역']] :
+      [['ID', 'INT', 1], ['NAME', 'VARCHAR(50)']]);
     commit(); selectIt({ type: 't', id: t.id });
     var inp = $('#tp-name'); if (inp) { inp.focus(); inp.select(); }
   }
@@ -1401,6 +1590,8 @@ stage.addEventListener('dblclick', function (e) {
     else if (f === 'cdesc' && c) c.desc = e.target.value;
     else if (f === 'ctype' && c) c.type = e.target.value;
     else if (f === 'cnn' && c) c.nn = e.target.checked;
+    else if (f === 'cdtel' && c) c.dtel = e.target.value;
+    else if ((f === 'clen' || f === 'cdec') && c) { var pt = parseType(c.type), li2 = e.target.closest('.col'); c.type = fmtType(pt.t, li2.querySelector('[data-f="clen"]').value, li2.querySelector('[data-f="cdec"]').value); }
     syncAll(); drawCanvas();
   });
   side.addEventListener('change', function (e) {
@@ -1411,6 +1602,24 @@ stage.addEventListener('dblclick', function (e) {
       setFK(tt, col, v[0], v[1]); pickFor = null;
       syncAll(); commit(); drawCanvas(); renderSide();
       hint(col.name + ' 필드를 FK로 지정하고 관계선을 그렸어요', false, 2800); return;
+    }
+    if (sel && sel.type === 't' && T(sel.id)) {
+      var st = T(sel.id), sli = e.target.closest('.col'), sc = sli && C(st, sli.getAttribute('data-c'));
+      if (f === 'tdel') { st.sap = st.sap || {}; st.sap.delivery = e.target.value; }
+      else if (f === 'tdcl') { st.sap = st.sap || {}; if (e.target.value) st.sap.dataClass = e.target.value; else delete st.sap.dataClass; }
+      else if (f === 'cdt' && sc) {
+        var op = parseType(sc.type), nt = e.target.value, nd = DDIC[nt];
+        sc.type = fmtType(nt, op.len || (nt === 'CHAR' || nt === 'NUMC' ? 10 : nt === 'CURR' || nt === 'DEC' || nt === 'QUAN' ? 15 : 1), nd && nd.dec ? (op.dec || 2) : 0);
+        if (!(nd && nd.ref)) delete sc.ref;
+        syncAll();
+      }
+      else if (f === 'cref' && sc) { if (e.target.value) { var rv = e.target.value.split('|'); sc.ref = { t: rv[0], c: rv[1] }; } else delete sc.ref; }
+      if (isSap()) {   /* SE11은 이름을 대문자로 써요 */
+        if (f === 'tname') st.name = st.name.toUpperCase();
+        else if (f === 'cname' && sc) sc.name = sc.name.toUpperCase();
+        else if (f === 'cdtel' && sc) sc.dtel = (sc.dtel || '').toUpperCase();
+      }
+      syncAll(); drawCanvas();
     }
     commit(); renderSide();
   });
@@ -1469,9 +1678,17 @@ stage.addEventListener('dblclick', function (e) {
     if (fj) { if (window.ERD.onFlowJump) window.ERD.onFlowJump(fj.getAttribute('data-flowjump')); return; }
     if (mobile() && e.target.closest('.ph') && !e.target.closest('button')) { sheetMin = !side.classList.contains('min'); sheetApply(); if (!sheetMin) side.scrollTop = 0; return; }
     var b = e.target.closest('button'); if (!b) return;
+    if (b.hasAttribute('data-fmt')) {
+      var fm = b.getAttribute('data-fmt');
+      if ((fm === 'sap') === isSap()) return;
+      if (fm === 'sap') S.format = 'sap'; else delete S.format;
+      commit(); drawCanvas(); renderSide();
+      hint(fm === 'sap' ? 'SAP(SE11) 형식으로 바꿨어요. 필드마다 데이터 요소와 DDIC 타입을 정해 보세요' : '일반 DB 형식으로 바꿨어요. 적어 둔 타입은 그대로 남아 있어요', false, 3200);
+      return;
+    }
     if (b.id === 'add-col') {
-      var t = T(sel.id), n = 1; while (t.cols.some(function (c) { return c.name === 'COLUMN_' + n; })) n++;
-      var c = { id: uid('c'), name: 'COLUMN_' + n, type: 'VARCHAR(50)', pk: false, nn: false, fk: null, auto: false };
+      var t = T(sel.id), n = 1, cb = isSap() ? 'FIELD_' : 'COLUMN_'; while (t.cols.some(function (c) { return c.name === cb + n; })) n++;
+      var c = { id: uid('c'), name: cb + n, type: isSap() ? 'CHAR(10)' : 'VARCHAR(50)', pk: false, nn: false, fk: null, auto: false };
       t.cols.push(c); commit(); drawCanvas(); renderSide(); var inp = document.getElementById('c-' + c.id + '-n'); if (inp) { inp.focus(); inp.select(); } return;
     }
     if (b.id === 'del-sel') { deleteSel(); return; }
@@ -1518,7 +1735,8 @@ stage.addEventListener('dblclick', function (e) {
   $('#rel-id').addEventListener('change', function () { identOn = this.checked; hint(identOn ? '식별 관계로 그려요. 자식 표의 키에 부모 키가 들어가요' : '비식별 관계로 그려요. 자식 표에 일반 FK 필드가 생겨요', false, 2600); });
   function applyDetail() {
     $('#detail-on').checked = detail;
-    $('#show-sql').hidden = !detail;
+    $('#show-sql').hidden = !(detail || isSap());
+    $('#show-sql-t').textContent = isSap() ? 'SE11 정리표' : 'SQL 보기';
     try { localStorage.setItem('erd-detail', detail ? '1' : '0'); } catch (e) { /* ignore */ }
   }
   $('#detail-on').addEventListener('change', function () {
@@ -1559,8 +1777,9 @@ stage.addEventListener('dblclick', function (e) {
   $('#example').addEventListener('change', function () {
     var v = this.value; this.value = '';
     if (v && window.ERD && window.ERD.onReset) window.ERD.onReset();
+    if (v === 'flight') { freshStart(exFlight()); return; }
     if (v === 'course') { freshStart(exCourse()); if (mode !== 'flow') hint('프로그램 흐름 화면에서 예제 흐름을 볼 수 있어요', false, 3200); return; }
-    if (v === 'school') freshStart(exSchool()); else if (v === 'shop') freshStart(exShop()); else if (v === 'blank') freshStart({ tables: [], rels: [], seq: 1 });
+    if (v === 'school') freshStart(exSchool()); else if (v === 'shop') freshStart(exShop()); else if (v === 'blank') freshStart({ tables: [], rels: [], seq: 1, format: 'sap' });
   });
   $('#zoom-in').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.2); });
   $('#zoom-out').addEventListener('click', function () { var r = stage.getBoundingClientRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1 / 1.2); });
@@ -1650,7 +1869,8 @@ stage.addEventListener('dblclick', function (e) {
   }
   function openModal(m) {
     var ta = $('#m-text');
-    if (m === 'sql') { $('#m-title').textContent = 'SQL 보기'; ta.value = genSQL(); ta.readOnly = true; $('#m-note').textContent = '표 사이의 순서와 FK까지 포함한 CREATE TABLE 문이에요.'; $('#m-apply').hidden = true; }
+    if (m === 'sql' && isSap()) { $('#m-title').textContent = 'SE11 정리표'; ta.value = genSE11(); ta.readOnly = true; $('#m-note').textContent = 'SE11에서 테이블을 만들 때 옮겨 적기 좋게 정리했어요. 외래 키는 체크 테이블로 적었어요.'; $('#m-apply').hidden = true; }
+    else if (m === 'sql') { $('#m-title').textContent = 'SQL 보기'; ta.value = genSQL(); ta.readOnly = true; $('#m-note').textContent = '표 사이의 순서와 FK까지 포함한 CREATE TABLE 문이에요.'; $('#m-apply').hidden = true; }
     else { $('#m-title').textContent = 'JSON 내보내기·가져오기'; ta.value = JSON.stringify(S, null, 1); ta.readOnly = false; $('#m-note').textContent = '내용을 복사해 두었다가 아래 칸에 붙여넣고 불러올 수 있어요.'; $('#m-apply').hidden = false; }
     $('#veil').hidden = false; ta.focus();
   }

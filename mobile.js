@@ -101,7 +101,7 @@
       '<label class="m-row" for="m-example">' + ic('<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9.5h18M9 9.5V20"/>') + '<span class="grow">예제 불러오기</span>' +
       '<select class="m-sel" id="m-example" data-m="example"><option value="">고르기</option>' +
       Array.prototype.slice.call(example.options, 1).map(function (o) { return '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>'; }).join('') + '</select></label>' +
-      (detailOn.checked ? '<button type="button" class="m-row" data-m="sql">' + ic('<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/>') + '<span class="grow">SQL 보기</span>' + CHEV + '</button>' : '') +
+      (!$('#show-sql').hidden ? '<button type="button" class="m-row" data-m="sql">' + ic('<path d="M8 8l-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/>') + '<span class="grow">' + esc($('#show-sql-t').textContent) + '</span>' + CHEV + '</button>' : '') +
       '<button type="button" class="m-row" data-m="json">' + ic('<path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>') + '<span class="grow">JSON 내보내기 · 가져오기</span>' + CHEV + '</button>';
     menu.innerHTML = h;
   }
